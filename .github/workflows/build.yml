@@ -70,43 +70,8 @@ jobs:
           dist/*.zip.blockmap
           dist/latest-mac.yml
 
-  build-linux:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install Linux dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libxcb-dri3-0 libxkbcommon0 libxrandr2 libasound2
-        
-    - name: Install dependencies
-      run: npm install
-      
-    - name: Build React app
-      run: npm run build
-      
-    - name: Build Linux app
-      run: npm run electron-pack:linux
-      
-    - name: Upload Linux artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-build
-        path: |
-          dist/*.AppImage
-          dist/*.deb
-          dist/latest-linux.yml
-
   release:
-    needs: [build-windows, build-mac, build-linux]
+    needs: [build-windows, build-mac]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     
@@ -131,5 +96,3 @@ jobs:
           windows-build/*.exe
           mac-build/*.dmg
           mac-build/*.zip
-          linux-build/*.AppImage
-          linux-build/*.deb
