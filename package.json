@@ -7,11 +7,16 @@
     "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-start\"",
     "react-start": "cross-env BROWSER=none react-scripts start",
     "electron-start": "electron .",
-    "build": "react-scripts build && electron-builder",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "electron-pack": "electron-builder",
-    "preelectron-pack": "npm run build"
+    "electron-pack:win": "electron-builder --win",
+    "electron-pack:mac": "electron-builder --mac",
+    "electron-pack:linux": "electron-builder --linux",
+    "dist": "npm run build && npm run electron-pack",
+    "dist:all": "npm run build && npm run electron-pack -- -mwl",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [
     "inventory",
@@ -56,15 +61,48 @@
     ]
   },
   "build": {
-    "appId": "com.yourcompany.vehicle-inventory",
-    "productName": "Vehicle Inventory System",
+    "appId": "com.autopartspro.inventory",
+    "productName": "AutoParts Pro",
     "directories": {
       "output": "dist"
     },
     "files": [
       "build/**/*",
       "electron/**/*",
-      "node_modules/**/*"
-    ]
+      "node_modules/**/*",
+      "!**/*.map",
+      "!**/src/*",
+      "!**/test/*"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "build/icons"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
