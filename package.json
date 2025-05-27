@@ -70,10 +70,14 @@
       "build/**/*",
       "electron/**/*",
       "node_modules/**/*",
+      "package.json",
       "!**/*.map",
       "!**/src/*",
       "!**/test/*"
     ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
     "mac": {
       "category": "public.app-category.business",
       "icon": "build/icon.icns"
@@ -82,7 +86,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "icon": "build/icon.ico"
