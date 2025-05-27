@@ -3,6 +3,7 @@ const path = require('path');
 const isDev = require('electron-is-dev');
 const { initDatabase, getDatabase } = require('./database');
 const { migrateDatabase } = require('./migrate-db');
+const supabaseSync = require('./supabase-sync');
 
 let mainWindow;
 let db;
@@ -42,6 +43,13 @@ app.whenReady().then(async () => {
     migrateDatabase();
   } catch (error) {
     console.error('Migration error:', error);
+  }
+  
+  // Initialize Supabase sync if credentials are available
+  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+  const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+  if (supabaseUrl && supabaseKey) {
+    supabaseSync.initialize(supabaseUrl, supabaseKey);
   }
   
   createWindow();
@@ -137,4 +145,14 @@ ipcMain.handle('show-notification', async (event, { title, body }) => {
   });
   
   notification.show();
+});
+
+// Supabase sync handlers
+ipcMain.handle('sync-status', async () => {
+  return supabaseSync.getSyncStatus();
+});
+
+ipcMain.handle('trigger-sync', async () => {
+  await supabaseSync.syncAll();
+  return supabaseSync.getSyncStatus();
 });

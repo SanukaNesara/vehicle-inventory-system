@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Sidebar from './components/Sidebar';
+import SyncStatus from './components/SyncStatus';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import AddPart from './pages/AddPart';
@@ -29,6 +30,9 @@ function AppContent() {
       <Sidebar />
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 animate-fade-in">
+          <div className="flex justify-end mb-4">
+            <SyncStatus />
+          </div>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />

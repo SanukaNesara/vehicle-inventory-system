@@ -28,6 +28,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
     "electron-is-dev": "^2.0.0",
     "node-notifier": "^10.0.1",
     "react": "^18.2.0",
