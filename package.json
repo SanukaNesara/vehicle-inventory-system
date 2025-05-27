@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Vehicle Parts Inventory Management System",
   "main": "electron/main.js",
+  "homepage": "./",
   "scripts": {
     "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-start\"",
     "react-start": "cross-env BROWSER=none react-scripts start",

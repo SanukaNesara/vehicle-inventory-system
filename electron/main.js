@@ -15,8 +15,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
-    },
-    icon: path.join(__dirname, '../public/icon.png')
+    }
+    // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
   });
 
   mainWindow.loadURL(
@@ -77,8 +77,8 @@ function checkLowStock() {
       if (rows.length > 0) {
         const notification = new Notification({
           title: 'Low Stock Alert!',
-          body: `${rows.length} item(s) are running low on stock`,
-          icon: path.join(__dirname, '../public/icon.png')
+          body: `${rows.length} item(s) are running low on stock`
+          // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
         });
         
         notification.show();
@@ -132,8 +132,8 @@ ipcMain.handle('db-query', async (event, { type, query, params }) => {
 ipcMain.handle('show-notification', async (event, { title, body }) => {
   const notification = new Notification({
     title,
-    body,
-    icon: path.join(__dirname, '../public/icon.png')
+    body
+    // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
   });
   
   notification.show();
