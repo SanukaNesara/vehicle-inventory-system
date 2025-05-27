@@ -13,10 +13,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         
@@ -30,7 +30,7 @@ jobs:
       run: npm run electron-pack:win
       
     - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-build
         path: |
@@ -43,10 +43,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         
@@ -60,7 +60,7 @@ jobs:
       run: npm run electron-pack:mac
       
     - name: Upload macOS artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mac-build
         path: |
@@ -75,10 +75,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
         
@@ -97,7 +97,7 @@ jobs:
       run: npm run electron-pack:linux
       
     - name: Upload Linux artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: linux-build
         path: |
@@ -112,28 +112,24 @@ jobs:
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       
     - name: Display structure of downloaded files
       run: ls -la
       
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
         draft: false
         prerelease: false
-        
-    - name: Upload Windows Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./windows-build/AutoParts Pro Setup 1.0.0.exe
-        asset_name: AutoParts-Pro-Setup-Windows.exe
-        asset_content_type: application/octet-stream
+        files: |
+          windows-build/*.exe
+          mac-build/*.dmg
+          mac-build/*.zip
+          linux-build/*.AppImage
+          linux-build/*.deb
