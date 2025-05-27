@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -70,29 +73,3 @@ jobs:
           dist/*.zip.blockmap
           dist/latest-mac.yml
 
-  release:
-    needs: [build-windows, build-mac]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    
-    steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      
-    - name: Display structure of downloaded files
-      run: ls -la
-      
-    - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        draft: false
-        prerelease: false
-        files: |
-          windows-build/*.exe
-          mac-build/*.dmg
-          mac-build/*.zip
