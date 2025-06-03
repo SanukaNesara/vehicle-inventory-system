@@ -24,25 +24,47 @@ const initDatabase = async () => {
 
 const createTables = async () => {
   try {
-    // Parts table with new fields
+    // Counters table for Pro No tracking
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS counters (
+        id TEXT PRIMARY KEY,
+        current_value INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Initialize pro_no counter if it doesn't exist
+    await db.run(`
+      INSERT OR IGNORE INTO counters (id, current_value) 
+      VALUES ('pro_no', 0)
+    `);
+
+    // Parts table with all fields
     await db.exec(`
       CREATE TABLE IF NOT EXISTS parts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pro_no TEXT UNIQUE,
         part_number TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
+        item_name TEXT,
         description TEXT,
-        part_type TEXT NOT NULL DEFAULT 'new',
+        part_type TEXT DEFAULT 'new',
         cost_price REAL DEFAULT 0,
         selling_price REAL DEFAULT 0,
         final_selling_price REAL DEFAULT 0,
         current_stock INTEGER DEFAULT 0,
         low_stock_threshold INTEGER DEFAULT 10,
+        supplier TEXT,
+        item_code TEXT,
+        cost_code TEXT,
+        reorder_level INTEGER DEFAULT 0,
+        unit TEXT DEFAULT 'NOS',
+        location TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Stock movements with prices
+    // Stock movements table
     await db.exec(`
       CREATE TABLE IF NOT EXISTS stock_movements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,6 +124,8 @@ const createTables = async () => {
         FOREIGN KEY (part_id) REFERENCES parts(id)
       )
     `);
+
+    console.log('Database tables created successfully');
   } catch (err) {
     console.error('Error creating tables:', err);
     throw err;

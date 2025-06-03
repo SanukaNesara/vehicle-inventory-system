@@ -11,15 +11,40 @@ const migrateDatabase = async () => {
   });
 
   try {
-    // Add new columns to parts table if they don't exist
-    await safeAlterTable(db, 'parts', 'part_type TEXT DEFAULT "new"');
-    await safeAlterTable(db, 'parts', 'cost_price REAL DEFAULT 0');
-    await safeAlterTable(db, 'parts', 'selling_price REAL DEFAULT 0');
-    await safeAlterTable(db, 'parts', 'final_selling_price REAL DEFAULT 0');
-    await safeAlterTable(db, 'parts', 'low_stock_threshold INTEGER DEFAULT 10');
+    // Create parts table if it doesn't exist
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS parts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pro_no TEXT UNIQUE,
+        part_number TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        part_type TEXT CHECK(part_type IN ('new', 'used')) DEFAULT 'new',
+        cost_price REAL DEFAULT 0,
+        selling_price REAL DEFAULT 0,
+        final_selling_price REAL DEFAULT 0,
+        current_stock INTEGER DEFAULT 0,
+        low_stock_threshold INTEGER DEFAULT 10,
+        supplier TEXT,
+        item_code TEXT,
+        cost_code TEXT,
+        reorder_level INTEGER DEFAULT 0,
+        unit TEXT DEFAULT 'NOS',
+        location TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
 
-    // Update existing unit_price to final_selling_price if it exists
-    await db.run('UPDATE parts SET final_selling_price = unit_price WHERE final_selling_price = 0 AND unit_price > 0');
+      CREATE TABLE IF NOT EXISTS counters (
+        id TEXT PRIMARY KEY,
+        current_value INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+
+    // Initialize pro_no counter if it doesn't exist
+    const counterExists = await db.get('SELECT 1 FROM counters WHERE id = ?', ['pro_no']);
+    if (!counterExists) {
+      await db.run('INSERT INTO counters (id, current_value) VALUES (?, ?)', ['pro_no', 0]);
+    }
 
     // Add new columns to stock_movements table
     await safeAlterTable(db, 'stock_movements', 'cost_price REAL');
