@@ -111,30 +111,22 @@ function checkLowStock() {
 ipcMain.handle('db-query', async (event, { type, query, params }) => {
   const db = getDatabase();
   
-  return new Promise((resolve, reject) => {
+  try {
     switch (type) {
       case 'all':
-        db.all(query, params || [], (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows);
-        });
-        break;
+        return await db.all(query, params || []);
       case 'get':
-        db.get(query, params || [], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-        break;
+        return await db.get(query, params || []);
       case 'run':
-        db.run(query, params || [], function(err) {
-          if (err) reject(err);
-          else resolve({ lastID: this.lastID, changes: this.changes });
-        });
-        break;
+        const result = await db.run(query, params || []);
+        return { lastID: result.lastID, changes: result.changes };
       default:
-        reject(new Error('Invalid query type'));
+        throw new Error('Invalid query type');
     }
-  });
+  } catch (error) {
+    console.error('Database error:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('show-notification', async (event, { title, body }) => {
