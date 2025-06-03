@@ -13,7 +13,8 @@ const AddPart = () => {
     cost_price: '',
     selling_price: '',
     final_selling_price: '',
-    low_stock_threshold: 10
+    low_stock_threshold: 10,
+    supplier: ''
   });
 
   const handleChange = (e) => {
@@ -44,8 +45,8 @@ const AddPart = () => {
         `INSERT INTO parts (
           part_number, name, description, part_type, 
           cost_price, selling_price, final_selling_price, 
-          low_stock_threshold, current_stock
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          low_stock_threshold, current_stock, supplier
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
         [
           formData.part_number,
           formData.name,
@@ -54,7 +55,8 @@ const AddPart = () => {
           parseFloat(formData.cost_price) || 0,
           parseFloat(formData.selling_price) || 0,
           parseFloat(formData.final_selling_price) || 0,
-          parseInt(formData.low_stock_threshold) || 10
+          parseInt(formData.low_stock_threshold) || 10,
+          formData.supplier
         ]
       );
 
@@ -213,6 +215,22 @@ const AddPart = () => {
                 min="1"
                 required
                 placeholder="10"
+              />
+            </div>
+
+            {/* Supplier */}
+            <div>
+              <label htmlFor="supplier" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Supplier
+              </label>
+              <input
+                type="text"
+                id="supplier"
+                name="supplier"
+                className="input-field"
+                value={formData.supplier}
+                onChange={handleChange}
+                placeholder="Enter supplier or import location"
               />
             </div>
           </div>
