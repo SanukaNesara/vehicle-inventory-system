@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, Menu } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const { initDatabase, getDatabase } = require('./database');
@@ -19,6 +19,61 @@ function createWindow() {
     }
     // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
   });
+
+  // Create the menu template
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Vehicle',
+      submenu: [
+        {
+          label: 'Job Card',
+          click: async () => {
+            mainWindow.webContents.send('navigate', '/job-cards');
+          }
+        },
+        {
+          label: 'Estimate',
+          click: async () => {
+            mainWindow.webContents.send('navigate', '/estimates');
+          }
+        }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 
   mainWindow.loadURL(
     isDev

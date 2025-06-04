@@ -13,6 +13,7 @@ import AddStock from './pages/AddStock';
 import JobCards from './pages/JobCards';
 import AddJobCard from './pages/AddJobCard';
 import EditJobCard from './pages/EditJobCard';
+import Estimates from './pages/Estimates';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -21,6 +22,10 @@ function AppContent() {
     if (window.electronAPI) {
       window.electronAPI.onNavigateToLowStock(() => {
         navigate('/low-stock');
+      });
+
+      window.electronAPI.onNavigate((path) => {
+        navigate(path);
       });
     }
   }, [navigate]);
@@ -44,6 +49,7 @@ function AppContent() {
             <Route path="/stock-movement" element={<StockMovement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/low-stock" element={<LowStock />} />
+            <Route path="/estimates" element={<Estimates />} />
           </Routes>
         </div>
       </div>

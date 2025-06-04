@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNavigateToLowStock: (callback) => {
     ipcRenderer.on('navigate-to-low-stock', callback);
   },
+  onNavigate: (callback) => {
+    ipcRenderer.on('navigate', (_, path) => callback(path));
+  },
   sync: {
     getStatus: () => ipcRenderer.invoke('sync-status'),
     triggerSync: () => ipcRenderer.invoke('trigger-sync')

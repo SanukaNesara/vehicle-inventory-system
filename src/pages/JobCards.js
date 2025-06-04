@@ -47,10 +47,10 @@ const JobCards = () => {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(job =>
-        job.job_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.customer_vehicle_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.technician_name.toLowerCase().includes(searchTerm.toLowerCase())
+        (job.job_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.vehicle_no || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (job.technician || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 

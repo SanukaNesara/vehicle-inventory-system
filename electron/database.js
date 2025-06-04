@@ -24,7 +24,7 @@ const initDatabase = async () => {
 
 const createTables = async () => {
   try {
-    // Counters table for Pro No tracking
+    // Counters table for Pro No and Job No tracking
     await db.exec(`
       CREATE TABLE IF NOT EXISTS counters (
         id TEXT PRIMARY KEY,
@@ -32,10 +32,14 @@ const createTables = async () => {
       )
     `);
 
-    // Initialize pro_no counter if it doesn't exist
+    // Initialize counters if they don't exist
     await db.run(`
       INSERT OR IGNORE INTO counters (id, current_value) 
       VALUES ('pro_no', 0)
+    `);
+    await db.run(`
+      INSERT OR IGNORE INTO counters (id, current_value) 
+      VALUES ('job_no', 0)
     `);
 
     // Parts table with all fields
@@ -64,6 +68,43 @@ const createTables = async () => {
       )
     `);
 
+    // Job Cards table with job_no field
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS job_cards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_no TEXT UNIQUE NOT NULL,
+        job_date DATE NOT NULL,
+        in_time TIME NOT NULL,
+        vehicle_no TEXT NOT NULL,
+        vehicle_type TEXT DEFAULT 'CAR',
+        make TEXT,
+        model TEXT,
+        color TEXT,
+        engine_no TEXT,
+        chassis_no TEXT,
+        man_year TEXT,
+        in_milage TEXT,
+        insurance_company TEXT,
+        claim_no TEXT,
+        date_of_accident DATE,
+        customer_type TEXT DEFAULT 'existing',
+        customer_name TEXT NOT NULL,
+        id_no TEXT,
+        address TEXT,
+        mob_no TEXT,
+        tel_no TEXT,
+        fax_no TEXT,
+        email TEXT,
+        vat_no TEXT,
+        technician TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        total_cost REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        completed_at DATETIME,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Stock movements table
     await db.exec(`
       CREATE TABLE IF NOT EXISTS stock_movements (
@@ -77,23 +118,6 @@ const createTables = async () => {
         notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (part_id) REFERENCES parts(id)
-      )
-    `);
-
-    // Job Cards table
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS job_cards (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        job_name TEXT NOT NULL,
-        description TEXT,
-        customer_name TEXT NOT NULL,
-        customer_vehicle_number TEXT NOT NULL,
-        technician_name TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        total_cost REAL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        completed_at DATETIME,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
