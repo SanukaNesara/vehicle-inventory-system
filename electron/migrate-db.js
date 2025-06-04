@@ -51,6 +51,45 @@ const migrateDatabase = async () => {
     await safeAlterTable(db, 'stock_movements', 'selling_price REAL');
     await safeAlterTable(db, 'stock_movements', 'final_selling_price REAL');
 
+    // Create estimates table
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS estimates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_no TEXT UNIQUE,
+        job_no TEXT,
+        job_date TEXT,
+        vehicle_no TEXT,
+        customer TEXT,
+        ins_company TEXT,
+        remarks TEXT,
+        total_amount REAL DEFAULT 0,
+        discount REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create estimate_items table
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS estimate_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        estimate_id INTEGER,
+        type TEXT,
+        description TEXT,
+        price REAL,
+        quantity INTEGER,
+        value REAL,
+        fb TEXT,
+        FOREIGN KEY (estimate_id) REFERENCES estimates (id)
+      )
+    `);
+
+    // Add estimate_invoice counter if it doesn't exist
+    const estimateInvoiceCounter = await db.get('SELECT * FROM counters WHERE id = ?', ['estimate_invoice']);
+    if (!estimateInvoiceCounter) {
+      await db.run('INSERT INTO counters (id, current_value) VALUES (?, ?)', ['estimate_invoice', 0]);
+    }
+
     console.log('Database migration completed!');
   } catch (error) {
     console.error('Migration error:', error);

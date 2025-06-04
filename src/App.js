@@ -14,6 +14,7 @@ import JobCards from './pages/JobCards';
 import AddJobCard from './pages/AddJobCard';
 import EditJobCard from './pages/EditJobCard';
 import Estimates from './pages/Estimates';
+import AddEstimate from './pages/AddEstimate';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -50,6 +51,7 @@ function AppContent() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/low-stock" element={<LowStock />} />
             <Route path="/estimates" element={<Estimates />} />
+            <Route path="/add-estimate" element={<AddEstimate />} />
           </Routes>
         </div>
       </div>
