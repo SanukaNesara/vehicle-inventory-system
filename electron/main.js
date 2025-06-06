@@ -69,6 +69,17 @@ function createWindow() {
           }
         }
       ]
+    },
+    {
+      label: 'Sales',
+      submenu: [
+        {
+          label: 'Invoice',
+          click: async () => {
+            mainWindow.webContents.send('navigate', '/invoices');
+          }
+        }
+      ]
     }
   ];
 

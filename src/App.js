@@ -13,8 +13,10 @@ import AddStock from './pages/AddStock';
 import JobCards from './pages/JobCards';
 import AddJobCard from './pages/AddJobCard';
 import EditJobCard from './pages/EditJobCard';
+import ViewJobCard from './pages/ViewJobCard';
 import Estimates from './pages/Estimates';
 import AddEstimate from './pages/AddEstimate';
+import Invoice from './pages/Invoice';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -47,11 +49,13 @@ function AppContent() {
             <Route path="/job-cards" element={<JobCards />} />
             <Route path="/add-job-card" element={<AddJobCard />} />
             <Route path="/edit-job-card/:id" element={<EditJobCard />} />
+            <Route path="/view-job-card/:id" element={<ViewJobCard />} />
             <Route path="/stock-movement" element={<StockMovement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/low-stock" element={<LowStock />} />
             <Route path="/estimates" element={<Estimates />} />
             <Route path="/add-estimate" element={<AddEstimate />} />
+            <Route path="/invoices" element={<Invoice />} />
           </Routes>
         </div>
       </div>

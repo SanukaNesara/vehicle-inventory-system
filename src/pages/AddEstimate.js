@@ -94,10 +94,14 @@ const AddEstimate = () => {
   ];
 
   const [formData, setFormData] = useState({
-    invoice_no: '',
     job_no: '',
     job_date: new Date().toISOString().split('T')[0],
     vehicle_no: '',
+    make: '',
+    model: '',
+    chassis_no: '',
+    engine_no: '',
+    prepared_by: '',
     customer: '',
     ins_company: 'N/A',
     remarks: '',
@@ -110,14 +114,14 @@ const AddEstimate = () => {
 
   useEffect(() => {
     fetchJobNumbers();
-    generateInvoiceNo();
   }, []);
 
   const fetchJobNumbers = async () => {
     try {
       const result = await window.electronAPI.database.query(
         'all',
-        `SELECT job_no, customer_name, vehicle_no 
+        `SELECT job_no, job_date, vehicle_no, make, model, 
+                chassis_no, engine_no, customer_name, technician
          FROM job_cards 
          ORDER BY created_at DESC`
       );
@@ -127,51 +131,20 @@ const AddEstimate = () => {
     }
   };
 
-  const generateInvoiceNo = async () => {
-    // If invoice_no already exists in form, don't generate a new one
-    if (formData.invoice_no) {
-      window.electronAPI.notification.show('Info', 'Invoice No. already generated');
-      return;
-    }
-
-    try {
-      // Get the current counter value and increment it
-      const result = await window.electronAPI.database.query(
-        'get',
-        `SELECT current_value FROM counters WHERE id = 'estimate_invoice'`
-      );
-
-      let nextValue;
-      if (result && result.current_value !== undefined) {
-        nextValue = result.current_value + 1;
-      } else {
-        nextValue = 1;
-      }
-
-      // Update the counter
-      await window.electronAPI.database.query(
-        'run',
-        `UPDATE counters SET current_value = ? WHERE id = 'estimate_invoice'`,
-        [nextValue]
-      );
-
-      // Format with leading zeros (8 digits)
-      const invoiceNo = nextValue.toString().padStart(8, '0');
-      setFormData(prev => ({ ...prev, invoice_no: invoiceNo }));
-    } catch (error) {
-      console.error('Error generating Invoice No:', error);
-      window.electronAPI.notification.show('Error', 'Failed to generate Invoice No.');
-    }
-  };
-
   const handleJobSelect = (jobNo) => {
     const selectedJob = jobNumbers.find(job => job.job_no === jobNo);
     if (selectedJob) {
       setFormData(prev => ({
         ...prev,
         job_no: selectedJob.job_no,
-        vehicle_no: selectedJob.vehicle_no,
-        customer: selectedJob.customer_name
+        job_date: selectedJob.job_date || new Date().toISOString().split('T')[0],
+        vehicle_no: selectedJob.vehicle_no || '',
+        make: selectedJob.make || '',
+        model: selectedJob.model || '',
+        chassis_no: selectedJob.chassis_no || '',
+        engine_no: selectedJob.engine_no || '',
+        prepared_by: selectedJob.technician || '',
+        customer: selectedJob.customer_name || ''
       }));
     }
   };
@@ -205,11 +178,6 @@ const AddEstimate = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.invoice_no) {
-      window.electronAPI.notification.show('Error', 'Please generate an Invoice No. first');
-      return;
-    }
-    
     if (!formData.job_no) {
       window.electronAPI.notification.show('Error', 'Please select a Job No.');
       return;
@@ -226,12 +194,11 @@ const AddEstimate = () => {
       const result = await window.electronAPI.database.query(
         'run',
         `INSERT INTO estimates (
-          invoice_no, job_no, job_date, vehicle_no,
+          job_no, job_date, vehicle_no,
           customer, ins_company, remarks, total_amount,
           discount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          formData.invoice_no,
           formData.job_no,
           formData.job_date,
           formData.vehicle_no,
@@ -269,11 +236,7 @@ const AddEstimate = () => {
       }
     } catch (error) {
       console.error('Error creating estimate:', error);
-      if (error.message?.includes('UNIQUE constraint failed')) {
-        window.electronAPI.notification.show('Error', 'Invoice number already exists');
-      } else {
-        window.electronAPI.notification.show('Error', 'Failed to create estimate');
-      }
+      window.electronAPI.notification.show('Error', 'Failed to create estimate');
     } finally {
       setLoading(false);
     }
@@ -298,16 +261,6 @@ const AddEstimate = () => {
             <div className="col-span-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Invoice No</label>
-                  <input
-                    type="text"
-                    value={formData.invoice_no}
-                    onChange={(e) => setFormData(prev => ({ ...prev, invoice_no: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                    readOnly
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Job No</label>
                   <select
                     value={formData.job_no}
@@ -317,27 +270,63 @@ const AddEstimate = () => {
                     <option value="">Select Job No</option>
                     {jobNumbers.map(job => (
                       <option key={job.job_no} value={job.job_no}>
-                        {job.job_no} - {job.customer_name} ({job.vehicle_no})
+                        {job.job_no}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Vehicle No</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Date</label>
                   <input
                     type="text"
-                    value={formData.vehicle_no}
-                    onChange={(e) => setFormData(prev => ({ ...prev, vehicle_no: e.target.value }))}
+                    value={formData.job_date}
                     className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Job Date</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Prepared By</label>
                   <input
-                    type="date"
-                    value={formData.job_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, job_date: e.target.value }))}
+                    type="text"
+                    value={formData.prepared_by}
                     className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Vehicle Reg. No</label>
+                  <input
+                    type="text"
+                    value={formData.vehicle_no}
+                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Make & Model</label>
+                  <input
+                    type="text"
+                    value={`${formData.make} ${formData.model}`.trim()}
+                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Chassis No</label>
+                  <input
+                    type="text"
+                    value={formData.chassis_no}
+                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Engine No</label>
+                  <input
+                    type="text"
+                    value={formData.engine_no}
+                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
                   />
                 </div>
                 <div>
@@ -345,8 +334,8 @@ const AddEstimate = () => {
                   <input
                     type="text"
                     value={formData.customer}
-                    onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
                     className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    readOnly
                   />
                 </div>
                 <div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiPlus, FiSearch, FiEdit, FiCheckCircle, FiXCircle, FiClock, FiUser, FiTruck } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit, FiCheckCircle, FiXCircle, FiClock, FiUser, FiTruck, FiEye } from 'react-icons/fi';
 
 const JobCards = () => {
   const navigate = useNavigate();
@@ -231,6 +231,13 @@ const JobCards = () => {
                 {job.status === 'pending' && (
                   <>
                     <button
+                      onClick={() => navigate(`/view-job-card/${job.job_no}`)}
+                      className="p-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      title="View"
+                    >
+                      <FiEye className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => navigate(`/edit-job-card/${job.id}`)}
                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                       title="Edit"
@@ -254,6 +261,15 @@ const JobCards = () => {
                       <FiXCircle className="w-4 h-4" />
                     </button>
                   </>
+                )}
+                {job.status !== 'pending' && (
+                  <button
+                    onClick={() => navigate(`/view-job-card/${job.job_no}`)}
+                    className="p-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                    title="View"
+                  >
+                    <FiEye className="w-4 h-4" />
+                  </button>
                 )}
               </div>
             </div>
