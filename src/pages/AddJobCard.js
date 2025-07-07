@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiSave, FiPlus, FiTrash2, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import html2canvas from 'html2canvas';
+import JobCardPrint from '../components/JobCardPrint';
 
 const AddJobCard = () => {
   const navigate = useNavigate();
@@ -10,7 +12,12 @@ const AddJobCard = () => {
   const [showPartSelector, setShowPartSelector] = useState(false);
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   const [recentJobNos, setRecentJobNos] = useState([]);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
+  const printRef = useRef(null);
 
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+  
   const [formData, setFormData] = useState({
     // Job Details
     job_no: '',
@@ -30,6 +37,7 @@ const AddJobCard = () => {
     insurance_company: '',
     claim_no: '',
     date_of_accident: new Date().toISOString().split('T')[0],
+    advance: 0,
 
     // Customer Details
     customer_name: '',
@@ -40,7 +48,8 @@ const AddJobCard = () => {
     fax_no: '',
     email: '',
     vat_no: '',
-    technician: ''
+    technician: '',
+    service_advisor: ''
   });
 
   const [selectedParts, setSelectedParts] = useState([]);
@@ -48,6 +57,52 @@ const AddJobCard = () => {
   useEffect(() => {
     fetchParts();
     fetchRecentJobNos();
+  }, []);
+
+  // Update time every minute
+  useEffect(() => {
+    const timeInterval = setInterval(() => {
+      const newTime = new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      setCurrentTime(newTime);
+      
+      // Update the form data with current time
+      setFormData(prev => ({
+        ...prev,
+        in_time: newTime
+      }));
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timeInterval);
+  }, []);
+
+  // Update time when component becomes visible (when user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const newTime = new Date().toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        setCurrentTime(newTime);
+        setFormData(prev => ({
+          ...prev,
+          in_time: newTime
+        }));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
   }, []);
 
   const fetchParts = async () => {
@@ -177,10 +232,10 @@ const AddJobCard = () => {
           job_no, job_date, in_time, vehicle_no, vehicle_type,
           make, model, color, engine_no, chassis_no,
           man_year, in_milage, insurance_company, claim_no,
-          date_of_accident, customer_type, customer_name,
+          date_of_accident, advance, customer_type, customer_name,
           id_no, address, mob_no, tel_no, fax_no,
-          email, vat_no, technician
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          email, vat_no, technician, service_advisor
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           formData.job_no,
           formData.job_date,
@@ -197,6 +252,7 @@ const AddJobCard = () => {
           formData.insurance_company,
           formData.claim_no,
           formData.date_of_accident,
+          formData.advance,
           isNewCustomer ? 'new' : 'existing',
           formData.customer_name,
           formData.id_no,
@@ -206,7 +262,8 @@ const AddJobCard = () => {
           formData.fax_no,
           formData.email,
           formData.vat_no,
-          formData.technician
+          formData.technician,
+          formData.service_advisor
         ]
       );
 
@@ -232,6 +289,29 @@ const AddJobCard = () => {
     part.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     part.part_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handlePrint = async () => {
+    if (!formData.job_no) {
+      window.electronAPI.notification.show('Error', 'Please generate a Job No. first');
+      return;
+    }
+    setShowPrintPreview(true);
+  };
+
+  const handlePrintPreview = () => {
+    setShowPrintPreview(true);
+  };
+
+  const handleActualPrint = () => {
+    setShowPrintPreview(false);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const closePrintPreview = () => {
+    setShowPrintPreview(false);
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -305,14 +385,35 @@ const AddJobCard = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">In Time</label>
-              <input
-                type="time"
-                name="in_time"
-                value={formData.in_time}
-                onChange={handleChange}
-                className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                In Time 
+                <span className="text-green-400 text-xs ml-1">● Auto-updating</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="time"
+                  name="in_time"
+                  value={formData.in_time}
+                  onChange={handleChange}
+                  className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newTime = new Date().toLocaleTimeString('en-US', { 
+                      hour12: false, 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    });
+                    setCurrentTime(newTime);
+                    setFormData(prev => ({ ...prev, in_time: newTime }));
+                  }}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-colors"
+                  title="Refresh current time"
+                >
+                  <FiRefreshCw className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -332,323 +433,270 @@ const AddJobCard = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
-                <select
+                <input
+                  type="text"
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
+                  list="vehicle-types"
+                  placeholder="Type vehicle type or select from list"
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="WPKS-1661">WPKS-1661</option>
-                  <option value="WPGS-2296">WPGS-2296</option>
-                  <option value="WORKSHOP">WORKSHOP</option>
-                  <option value="WORK SHOP">WORK SHOP</option>
-                  <option value="VW">VW</option>
-                  <option value="VAN">VAN</option>
-                  <option value="UNIQUE RIDES">UNIQUE RIDES</option>
-                  <option value="UNIQUE 1">UNIQUE 1</option>
-                  <option value="TRUCK">TRUCK</option>
-                  <option value="SUV">SUV</option>
-                  <option value="SU V">SU V</option>
-                  <option value="SEDARN">SEDARN</option>
-                  <option value="SCODA">SCODA</option>
-                  <option value="Q5">Q5</option>
-                  <option value="Q3">Q3</option>
-                  <option value="Q2">Q2</option>
-                  <option value="MR.IMTIYAZ *">MR.IMTIYAZ *</option>
-                  <option value="MR.IMTIYAZ">MR.IMTIYAZ</option>
-                  <option value="MR.GIHAN NEW">MR.GIHAN NEW</option>
-                  <option value="LORRY">LORRY</option>
-                  <option value="JEEP">JEEP</option>
-                  <option value="JAYASEKARA">JAYASEKARA</option>
-                  <option value="HATCHBACK">HATCHBACK</option>
-                  <option value="GENERATOR 1">GENERATOR 1</option>
-                  <option value="GEEP">GEEP</option>
-                  <option value="CREW CAB">CREW CAB</option>
-                  <option value="CR">CR</option>
-                  <option value="CAT">CAT</option>
-                  <option value="CAR">CAR</option>
-                  <option value="CAB">CAB</option>
-                  <option value="AUDI">AUDI</option>
-                  <option value="A3">A3</option>
-                  <option value="-">-</option>
-                </select>
+                />
+                <datalist id="vehicle-types">
+                  <option value="CAR" />
+                  <option value="SUV" />
+                  <option value="VAN" />
+                  <option value="TRUCK" />
+                  <option value="JEEP" />
+                  <option value="HATCHBACK" />
+                  <option value="LORRY" />
+                  <option value="CAB" />
+                  <option value="CREW CAB" />
+                  <option value="SEDARN" />
+                  <option value="WORKSHOP" />
+                  <option value="WORK SHOP" />
+                  <option value="WPKS-1661" />
+                  <option value="WPGS-2296" />
+                  <option value="VW" />
+                  <option value="UNIQUE RIDES" />
+                  <option value="UNIQUE 1" />
+                  <option value="SU V" />
+                  <option value="SCODA" />
+                  <option value="Q5" />
+                  <option value="Q3" />
+                  <option value="Q2" />
+                  <option value="MR.IMTIYAZ *" />
+                  <option value="MR.IMTIYAZ" />
+                  <option value="MR.GIHAN NEW" />
+                  <option value="JAYASEKARA" />
+                  <option value="GENERATOR 1" />
+                  <option value="GEEP" />
+                  <option value="CR" />
+                  <option value="CAT" />
+                  <option value="AUDI" />
+                  <option value="A3" />
+                  <option value="-" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Make</label>
-                <select
+                <input
+                  type="text"
                   name="make"
                   value={formData.make}
                   onChange={handleChange}
+                  list="vehicle-makes"
+                  placeholder="Type vehicle make or select from list"
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="WAXWAGON">WAXWAGON</option>
-                  <option value="WALKSWAGON">WALKSWAGON</option>
-                  <option value="WALKSWAGEN">WALKSWAGEN</option>
-                  <option value="WALKSWAGAN">WALKSWAGAN</option>
-                  <option value="WALKSAGON">WALKSAGON</option>
-                  <option value="VW">VW</option>
-                  <option value="VOLKSWAGON">VOLKSWAGON</option>
-                  <option value="VOLKSWAGEN">VOLKSWAGEN</option>
-                  <option value="VAN">VAN</option>
-                  <option value="VALKSWAGON">VALKSWAGON</option>
-                  <option value="V">V</option>
-                  <option value="UK">UK</option>
-                  <option value="TOYOTA">TOYOTA</option>
-                  <option value="TOYATA">TOYATA</option>
-                  <option value="TIGUAN">TIGUAN</option>
-                  <option value="SUZUKI">SUZUKI</option>
-                  <option value="SUV">SUV</option>
-                  <option value="SUSUKI-SWIFT">SUSUKI-SWIFT</option>
-                  <option value="SUSUKI">SUSUKI</option>
-                  <option value="SUBARU">SUBARU</option>
-                  <option value="STINGRAY">STINGRAY</option>
-                  <option value="SKODA">SKODA</option>
-                  <option value="SEAT">SEAT</option>
-                  <option value="SCODA">SCODA</option>
-                  <option value="RENAULT">RENAULT</option>
-                  <option value="RANGE ROVER">RANGE ROVER</option>
-                  <option value="Q2">Q2</option>
-                  <option value="PORSCHE">PORSCHE</option>
-                  <option value="PORCHI">PORCHI</option>
-                  <option value="POCSCHE">POCSCHE</option>
-                  <option value="PEUGEOT">PEUGEOT</option>
-                  <option value="PERADUA">PERADUA</option>
-                  <option value="NISSAN">NISSAN</option>
-                  <option value="MITSUBISHI">MITSUBISHI</option>
-                  <option value="MITSHUBISHY">MITSHUBISHY</option>
-                  <option value="MITSHUBISHI">MITSHUBISHI</option>
-                  <option value="MICRO">MICRO</option>
-                  <option value="MERC">MERC</option>
-                  <option value="MAZDA">MAZDA</option>
-                  <option value="LANDROVER">LANDROVER</option>
-                  <option value="LAMBORGHINI">LAMBORGHINI</option>
-                  <option value="KIA">KIA</option>
-                  <option value="JEEP">JEEP</option>
-                  <option value="ISUZU">ISUZU</option>
-                  <option value="HYHUNDAI">HYHUNDAI</option>
-                  <option value="HONDA">HONDA</option>
-                  <option value="HINDA">HINDA</option>
-                  <option value="GEEP">GEEP</option>
-                  <option value="FORD">FORD</option>
-                  <option value="CIAT">CIAT</option>
-                  <option value="CAR">CAR</option>
-                  <option value="BORGWARD">BORGWARD</option>
-                  <option value="BMW">BMW</option>
-                  <option value="BFB">BFB</option>
-                  <option value="BENZ">BENZ</option>
-                  <option value="AUDI E TRON">AUDI E TRON</option>
-                  <option value="AUDI">AUDI</option>
-                  <option value="AUD1">AUD1</option>
-                  <option value="AUD">AUD</option>
-                  <option value="ALT0">ALT0</option>
-                  <option value="AIDU">AIDU</option>
-                  <option value="ADUI">ADUI</option>
-                  <option value="AAAA">AAAA</option>
-                  <option value="A6">A6</option>
-                  <option value="A4">A4</option>
-                  <option value="A3">A3</option>
-                  <option value="-">-</option>
-                </select>
+                />
+                <datalist id="vehicle-makes">
+                  <option value="AUDI" />
+                  <option value="BMW" />
+                  <option value="BENZ" />
+                  <option value="TOYOTA" />
+                  <option value="HONDA" />
+                  <option value="NISSAN" />
+                  <option value="MAZDA" />
+                  <option value="SUZUKI" />
+                  <option value="MITSUBISHI" />
+                  <option value="SUBARU" />
+                  <option value="VOLKSWAGEN" />
+                  <option value="VW" />
+                  <option value="FORD" />
+                  <option value="KIA" />
+                  <option value="HYUNDAI" />
+                  <option value="PEUGEOT" />
+                  <option value="RENAULT" />
+                  <option value="SKODA" />
+                  <option value="SEAT" />
+                  <option value="PORSCHE" />
+                  <option value="LAMBORGHINI" />
+                  <option value="RANGE ROVER" />
+                  <option value="LANDROVER" />
+                  <option value="JEEP" />
+                  <option value="ISUZU" />
+                  <option value="PERADUA" />
+                  <option value="BORGWARD" />
+                  <option value="STINGRAY" />
+                  <option value="MICRO" />
+                  <option value="MERC" />
+                  <option value="HINDA" />
+                  <option value="GEEP" />
+                  <option value="CIAT" />
+                  <option value="BFB" />
+                  <option value="AUDI E TRON" />
+                  <option value="VOLKSWAGON" />
+                  <option value="WALKSWAGON" />
+                  <option value="WALKSWAGEN" />
+                  <option value="WALKSWAGAN" />
+                  <option value="WALKSAGON" />
+                  <option value="VALKSWAGON" />
+                  <option value="WAXWAGON" />
+                  <option value="TIGUAN" />
+                  <option value="SUSUKI-SWIFT" />
+                  <option value="SUSUKI" />
+                  <option value="SCODA" />
+                  <option value="PORCHI" />
+                  <option value="POCSCHE" />
+                  <option value="MITSHUBISHY" />
+                  <option value="MITSHUBISHI" />
+                  <option value="HYHUNDAI" />
+                  <option value="ADUI" />
+                  <option value="AIDU" />
+                  <option value="ALT0" />
+                  <option value="AUD" />
+                  <option value="AUD1" />
+                  <option value="AAAA" />
+                  <option value="A6" />
+                  <option value="A4" />
+                  <option value="A3" />
+                  <option value="Q2" />
+                  <option value="TOYATA" />
+                  <option value="SUV" />
+                  <option value="VAN" />
+                  <option value="CAR" />
+                  <option value="V" />
+                  <option value="UK" />
+                  <option value="-" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Model</label>
-                <select
+                <input
+                  type="text"
                   name="model"
                   value={formData.model}
                   onChange={handleChange}
+                  list="vehicle-models"
+                  placeholder="Type vehicle model or select from list"
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="X1">X1</option>
-                  <option value="WHITE">WHITE</option>
-                  <option value="WASH BAY">WASH BAY</option>
-                  <option value="WAGANR-">WAGANR-</option>
-                  <option value="VW">VW</option>
-                  <option value="VITZ">VITZ</option>
-                  <option value="VITO">VITO</option>
-                  <option value="VITARA">VITARA</option>
-                  <option value="VEZZEL">VEZZEL</option>
-                  <option value="VEZEL">VEZEL</option>
-                  <option value="VENTO">VENTO</option>
-                  <option value="UPI">UPI</option>
-                  <option value="UP">UP</option>
-                  <option value="TT">TT</option>
-                  <option value="TRONSPOTOR">TRONSPOTOR</option>
-                  <option value="T-ROC">T-ROC</option>
-                  <option value="TRANSPOTER">TRANSPOTER</option>
-                  <option value="TRANSPORTER">TRANSPORTER</option>
-                  <option value="TOUREG">TOUREG</option>
-                  <option value="TOURAG">TOURAG</option>
-                  <option value="TOUEREG">TOUEREG</option>
-                  <option value="TOUAREG">TOUAREG</option>
-                  <option value="TOARAG">TOARAG</option>
-                  <option value="TIGUWAN">TIGUWAN</option>
-                  <option value="TIGUAN ALLSPACE">TIGUAN ALLSPACE</option>
-                  <option value="TIGUAN">TIGUAN</option>
-                  <option value="TD4">TD4</option>
-                  <option value="T-CROSS">T-CROSS</option>
-                  <option value="TCROSS">TCROSS</option>
-                  <option value="T CROSS">T CROSS</option>
-                  <option value="SUSUKI">SUSUKI</option>
-                  <option value="SUPERB">SUPERB</option>
-                  <option value="SUNNY">SUNNY</option>
-                  <option value="SUNNEY">SUNNEY</option>
-                  <option value="SPORTAE">SPORTAE</option>
-                  <option value="SMART">SMART</option>
-                  <option value="SKODA">SKODA</option>
-                  <option value="SCODA">SCODA</option>
-                  <option value="S1">S1</option>
-                  <option value="R35">R35</option>
-                  <option value="RIO">RIO</option>
-                  <option value="RG51523">RG51523</option>
-                  <option value="R32">R32</option>
-                  <option value="Q8">Q8</option>
-                  <option value="Q7">Q7</option>
-                  <option value="Q6">Q6</option>
-                  <option value="Q5">Q5</option>
-                  <option value="Q4">Q4</option>
-                  <option value="Q3">Q3</option>
-                  <option value="Q2">Q2</option>
-                  <option value="PRIYAS">PRIYAS</option>
-                  <option value="PRIUS">PRIUS</option>
-                  <option value="PRIMIYO">PRIMIYO</option>
-                  <option value="PRADO">PRADO</option>
-                  <option value="PORSCHE">PORSCHE</option>
-                  <option value="POPO">POPO</option>
-                  <option value="POLO R LINE">POLO R LINE</option>
-                  <option value="POLO GT">POLO GT</option>
-                  <option value="POLO">POLO</option>
-                  <option value="PASSO">PASSO</option>
-                  <option value="PASSAT CC">PASSAT CC</option>
-                  <option value="PASSAT">PASSAT</option>
-                  <option value="PASSART WAGON">PASSART WAGON</option>
-                  <option value="PASSART">PASSART</option>
-                  <option value="PANDA">PANDA</option>
-                  <option value="PAJERO">PAJERO</option>
-                  <option value="OCTAVIA">OCTAVIA</option>
-                  <option value="MU-X">MU-X</option>
-                  <option value="MULTI VAN">MULTI VAN</option>
-                  <option value="MONTERO">MONTERO</option>
-                  <option value="MK1">MK1</option>
-                  <option value="MARUTI ZEN">MARUTI ZEN</option>
-                  <option value="MARUTI">MARUTI</option>
-                  <option value="MARCH">MARCH</option>
-                  <option value="MACAN">MACAN</option>
-                  <option value="LEAF">LEAF</option>
-                  <option value="LAND CRUISER">LAND CRUISER</option>
-                  <option value="KWID">KWID</option>
-                  <option value="KODIAQ">KODIAQ</option>
-                  <option value="KODIAG">KODIAG</option>
-                  <option value="KODI">KODI</option>
-                  <option value="KDH">KDH</option>
-                  <option value="KAROQ">KAROQ</option>
-                  <option value="JETTA">JETTA</option>
-                  <option value="JEETA">JEETA</option>
-                  <option value="IMPREZA">IMPREZA</option>
-                  <option value="ID5">ID5</option>
-                  <option value="ID4">ID4</option>
-                  <option value="ID 4">ID 4</option>
-                  <option value="HYUNDAI">HYUNDAI</option>
-                  <option value="HYBRIDE">HYBRIDE</option>
-                  <option value="HUSTLER">HUSTLER</option>
-                  <option value="HILUX">HILUX</option>
-                  <option value="GTE">GTE</option>
-                  <option value="GT POLO">GT POLO</option>
-                  <option value="GT">GT</option>
-                  <option value="GRACE">GRACE</option>
-                  <option value="GOLF-GT">GOLF-GT</option>
-                  <option value="GOLF">GOLF</option>
-                  <option value="GLC250">GLC250</option>
-                  <option value="GALANT">GALANT</option>
-                  <option value="FOCUS">FOCUS</option>
-                  <option value="FABIA">FABIA</option>
-                  <option value="EWOQ">EWOQ</option>
-                  <option value="EVOQUE">EVOQUE</option>
-                  <option value="EVERY">EVERY</option>
-                  <option value="E-GOLF GTE">E-GOLF GTE</option>
-                  <option value="E-GOLF">E-GOLF</option>
-                  <option value="E300D">E300D</option>
-                  <option value="E200">E200</option>
-                  <option value="E GOLF">E GOLF</option>
-                  <option value="E 350">E 350</option>
-                  <option value="E320">E320</option>
-                  <option value="E300">E300</option>
-                  <option value="E 240">E 240</option>
-                  <option value="DISCOVERY">DISCOVERY</option>
-                  <option value="CRZ">CRZ</option>
-                  <option value="CRV">CRV</option>
-                  <option value="CRAFTER">CRAFTER</option>
-                  <option value="COROLLA">COROLLA</option>
-                  <option value="COMPRESSOR C 180">COMPRESSOR C 180</option>
-                  <option value="CIVIC">CIVIC</option>
-                  <option value="C">C</option>
-                  <option value="CAYENNES HYBRID">CAYENNES HYBRID</option>
-                  <option value="CAYENNES">CAYENNES</option>
-                  <option value="CAYENNE">CAYENNE</option>
-                  <option value="CARINA/MY ROAD">CARINA/MY ROAD</option>
-                  <option value="CARAVELLE">CARAVELLE</option>
-                  <option value="CABRIOLT">CABRIOLT</option>
-                  <option value="BX5">BX5</option>
-                  <option value="BORRA">BORRA</option>
-                  <option value="BORABLACK">BORABLACK</option>
-                  <option value="BORA">BORA</option>
-                  <option value="BMW-520D">BMW-520D</option>
-                  <option value="BLUE">BLUE</option>
-                  <option value="BITTEL">BITTEL</option>
-                  <option value="BETTLE">BETTLE</option>
-                  <option value="BETTEL">BETTEL</option>
-                  <option value="BETLE">BETLE</option>
-                  <option value="BETEL">BETEL</option>
-                  <option value="BENZ">BENZ</option>
-                  <option value="BENTLY">BENTLY</option>
-                  <option value="BEETLE">BEETLE</option>
-                  <option value="BEETEL">BEETEL</option>
-                  <option value="BEELTE">BEELTE</option>
-                  <option value="BBBB">BBBB</option>
-                  <option value="AXIO">AXIO</option>
-                  <option value="AXIA">AXIA</option>
-                  <option value="AVARA">AVARA</option>
-                  <option value="AUDI A4">AUDI A4</option>
-                  <option value="AUDI A3">AUDI A3</option>
-                  <option value="AUDI">AUDI</option>
-                  <option value="ARONA">ARONA</option>
-                  <option value="AQUA">AQUA</option>
-                  <option value="AMG">AMG</option>
-                  <option value="ALTO">ALTO</option>
-                  <option value="AI">AI</option>
-                  <option value="ACTYON">ACTYON</option>
-                  <option value="A8L HYBRID">A8L HYBRID</option>
-                  <option value="A8L">A8L</option>
-                  <option value="A8-HYBRID">A8-HYBRID</option>
-                  <option value="A8 L">A8 L</option>
-                  <option value="A8 HYBRID">A8 HYBRID</option>
-                  <option value="A8">A8</option>
-                  <option value="A7">A7</option>
-                  <option value="A6BLACK">A6BLACK</option>
-                  <option value="A6 WAGEN">A6 WAGEN</option>
-                  <option value="A6... VAGAN">A6... VAGAN</option>
-                  <option value="A6 HYBRID">A6 HYBRID</option>
-                  <option value="A6 HYBRD">A6 HYBRD</option>
-                  <option value="A6-">A6-</option>
-                  <option value="A6">A6</option>
-                  <option value="A5 CONVERTIBLE">A5 CONVERTIBLE</option>
-                  <option value="A5">A5</option>
-                  <option value="A4 2018">A4 2018</option>
-                  <option value="A4">A4</option>
-                  <option value="A3 SEDAN">A3 SEDAN</option>
-                  <option value="A3 HATCHBACK">A3 HATCHBACK</option>
-                  <option value="A3">A3</option>
-                  <option value="A2">A2</option>
-                  <option value="A1 WHITE">A1 WHITE</option>
-                  <option value="A1 TWO DOOR">A1 TWO DOOR</option>
-                  <option value="A1">A1</option>
-                  <option value="730D">730D</option>
-                  <option value="530 E">530 E</option>
-                  <option value="523I">523I</option>
-                  <option value="4A">4A</option>
-                  <option value="320D">320D</option>
-                  <option value="308">308</option>
-                  <option value="-">-</option>
-                </select>
+                />
+                <datalist id="vehicle-models">
+                  <option value="A1" />
+                  <option value="A2" />
+                  <option value="A3" />
+                  <option value="A4" />
+                  <option value="A5" />
+                  <option value="A6" />
+                  <option value="A7" />
+                  <option value="A8" />
+                  <option value="Q2" />
+                  <option value="Q3" />
+                  <option value="Q4" />
+                  <option value="Q5" />
+                  <option value="Q6" />
+                  <option value="Q7" />
+                  <option value="Q8" />
+                  <option value="TT" />
+                  <option value="R32" />
+                  <option value="R35" />
+                  <option value="GOLF" />
+                  <option value="POLO" />
+                  <option value="PASSAT" />
+                  <option value="JETTA" />
+                  <option value="TIGUAN" />
+                  <option value="TOUAREG" />
+                  <option value="T-CROSS" />
+                  <option value="T-ROC" />
+                  <option value="UP" />
+                  <option value="BEETLE" />
+                  <option value="VENTO" />
+                  <option value="TRANSPORTER" />
+                  <option value="CRAFTER" />
+                  <option value="CARAVELLE" />
+                  <option value="COROLLA" />
+                  <option value="PRIUS" />
+                  <option value="VITZ" />
+                  <option value="AQUA" />
+                  <option value="PASSO" />
+                  <option value="AXIO" />
+                  <option value="PRADO" />
+                  <option value="HILUX" />
+                  <option value="LAND CRUISER" />
+                  <option value="KDH" />
+                  <option value="CIVIC" />
+                  <option value="CRV" />
+                  <option value="CRZ" />
+                  <option value="GRACE" />
+                  <option value="VEZEL" />
+                  <option value="MARCH" />
+                  <option value="LEAF" />
+                  <option value="SUNNY" />
+                  <option value="VITARA" />
+                  <option value="ALTO" />
+                  <option value="EVERY" />
+                  <option value="HUSTLER" />
+                  <option value="SWIFT" />
+                  <option value="IMPREZA" />
+                  <option value="FORESTER" />
+                  <option value="OUTBACK" />
+                  <option value="PAJERO" />
+                  <option value="MONTERO" />
+                  <option value="GALANT" />
+                  <option value="LANCER" />
+                  <option value="OUTLANDER" />
+                  <option value="320D" />
+                  <option value="523I" />
+                  <option value="530 E" />
+                  <option value="730D" />
+                  <option value="X1" />
+                  <option value="E200" />
+                  <option value="E300" />
+                  <option value="E320" />
+                  <option value="GLC250" />
+                  <option value="C" />
+                  <option value="AMG" />
+                  <option value="CAYENNE" />
+                  <option value="MACAN" />
+                  <option value="PANAMERA" />
+                  <option value="911" />
+                  <option value="FOCUS" />
+                  <option value="MUSTANG" />
+                  <option value="RANGER" />
+                  <option value="EXPLORER" />
+                  <option value="RIO" />
+                  <option value="SPORTAGE" />
+                  <option value="SORENTO" />
+                  <option value="CERATO" />
+                  <option value="OCTAVIA" />
+                  <option value="SUPERB" />
+                  <option value="KODIAQ" />
+                  <option value="KAROQ" />
+                  <option value="FABIA" />
+                  <option value="DISCOVERY" />
+                  <option value="EVOQUE" />
+                  <option value="DEFENDER" />
+                  <option value="FREELANDER" />
+                  <option value="MU-X" />
+                  <option value="D-MAX" />
+                  <option value="KWID" />
+                  <option value="DUSTER" />
+                  <option value="CAPTUR" />
+                  <option value="CLIO" />
+                  <option value="308" />
+                  <option value="508" />
+                  <option value="2008" />
+                  <option value="3008" />
+                  <option value="ARONA" />
+                  <option value="LEON" />
+                  <option value="IBIZA" />
+                  <option value="ATECA" />
+                  <option value="AXIA" />
+                  <option value="MYVI" />
+                  <option value="VIVA" />
+                  <option value="BEZZA" />
+                  <option value="ID4" />
+                  <option value="ID5" />
+                  <option value="E-GOLF" />
+                  <option value="GTE" />
+                  <option value="HYBRID" />
+                  <option value="SMART" />
+                  <option value="MULTI VAN" />
+                  <option value="VITO" />
+                  <option value="WHITE" />
+                  <option value="BLUE" />
+                  <option value="-" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Color</label>
@@ -707,9 +755,27 @@ const AddJobCard = () => {
                   name="insurance_company"
                   value={formData.insurance_company}
                   onChange={handleChange}
-                  placeholder="Enter insurance company"
+                  list="insurance-companies"
+                  placeholder="Type insurance company or select from list"
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                <datalist id="insurance-companies">
+                  <option value="Sri Lanka Insurance" />
+                  <option value="Amana Insurance" />
+                  <option value="Ceylinco Insurance" />
+                  <option value="HNB Insurance" />
+                  <option value="Peoples Insurance" />
+                  <option value="Fair First Insurance" />
+                  <option value="Co-operative Insurance" />
+                  <option value="Sanas General Insurance" />
+                  <option value="Allianz Insurance" />
+                  <option value="Oriant Insurance" />
+                  <option value="Continental Insurance" />
+                  <option value="LOLC Insurance" />
+                  <option value="Agharar Insurance" />
+                  <option value="MBSL Insurance" />
+                  <option value="AIA Insurance" />
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Claim No</label>
@@ -729,6 +795,18 @@ const AddJobCard = () => {
                   value={formData.date_of_accident}
                   onChange={handleChange}
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Advance</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="advance"
+                  value={formData.advance}
+                  onChange={handleChange}
+                  className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0.00"
                 />
               </div>
             </div>
@@ -853,20 +931,22 @@ const AddJobCard = () => {
                   className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Service Advisor</label>
+                <input
+                  type="text"
+                  name="service_advisor"
+                  value={formData.service_advisor}
+                  onChange={handleChange}
+                  placeholder="Enter service advisor name"
+                  className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
           </div>
 
           {/* Form Actions */}
           <div className="flex justify-end gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/job-cards')}
-              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800
-                       transition-colors"
-            >
-              Cancel
-            </button>
             <button
               type="submit"
               disabled={loading}
@@ -878,31 +958,119 @@ const AddJobCard = () => {
             </button>
             <button
               type="button"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800
-                       transition-colors"
+              onClick={handlePrint}
+              disabled={printLoading}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 
+                       focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800
+                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Print
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 
-                       focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800
-                       transition-colors"
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 
-                       focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-gray-800
-                       transition-colors"
-            >
-              Exit
+              {printLoading ? 'Generating Preview...' : '🖨️ Print Preview'}
             </button>
           </div>
         </form>
       </div>
+      
+      {/* Print Preview Modal */}
+      {showPrintPreview && (
+        <div className="print-preview-overlay">
+          <div className="print-preview-container">
+            <div className="print-preview-header">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">Job Card Print Preview</h3>
+                <p className="text-sm text-gray-600">Review your job card before printing</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleActualPrint}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  🖨️ Print
+                </button>
+                <button
+                  onClick={closePrintPreview}
+                  className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+            
+            <div className="print-preview-content">
+              <JobCardPrint 
+                jobData={formData} 
+                selectedParts={selectedParts} 
+                calculateTotal={calculateTotal} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Styles */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media print {
+            * {
+              -webkit-print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            
+            body, html {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              color: black !important;
+            }
+            
+            .print-hidden {
+              display: none !important;
+            }
+          }
+          
+          .print-preview-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+          }
+          
+          .print-preview-container {
+            background: white;
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          }
+          
+          .print-preview-header {
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+          }
+          
+          .print-preview-content {
+            padding: 20px;
+            background: white;
+            color: black;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+          }
+        `
+      }} />
     </div>
   );
 };

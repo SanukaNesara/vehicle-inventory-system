@@ -5,9 +5,10 @@
   "main": "electron/main.js",
   "homepage": "./",
   "scripts": {
-    "start": "concurrently \"npm run react-start\" \"wait-on http://localhost:3000 && npm run electron-start\"",
-    "react-start": "cross-env BROWSER=none react-scripts start",
+    "start": "concurrently --kill-others \"npm run react-start\" \"wait-on http://localhost:3001 && npm run electron-start\"",
+    "react-start": "cross-env BROWSER=none GENERATE_SOURCEMAP=false react-scripts start",
     "electron-start": "electron .",
+    "dev": "npm run start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
@@ -17,7 +18,8 @@
     "electron-pack:linux": "electron-builder --linux",
     "dist": "npm run build && npm run electron-pack",
     "dist:all": "npm run build && npm run electron-pack -- -mwl",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "rebuild": "electron-rebuild -f -w sqlite3"
   },
   "keywords": [
     "inventory",
@@ -29,15 +31,17 @@
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "better-sqlite3": "^11.10.0",
     "electron-is-dev": "^2.0.0",
+    "html2canvas": "^1.4.1",
     "node-notifier": "^10.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^4.7.1",
     "react-router-dom": "^6.8.0",
     "recharts": "^2.4.3",
+    "sql.js": "^1.13.0",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "tailwindcss": "^3.2.4"
   },
   "devDependencies": {
@@ -78,6 +82,7 @@
       "!**/src/*",
       "!**/test/*"
     ],
+    "includeSubNodeModules": true,
     "extraMetadata": {
       "main": "electron/main.js"
     },
@@ -94,6 +99,10 @@
         }
       ]
     },
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
+    "asar": false,
+    "npmRebuild": false,
     "linux": {
       "target": [
         "AppImage",

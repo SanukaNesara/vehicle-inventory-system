@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave } from 'react-icons/fi';
+import { FiArrowLeft, FiPlus } from 'react-icons/fi';
 
 const AddEstimate = () => {
   const navigate = useNavigate();
@@ -101,10 +101,12 @@ const AddEstimate = () => {
     customer: '',
     ins_company: 'N/A',
     remarks: '',
-    items: []
+    items: [],
+    discount: 0
   });
 
   const [selectedType, setSelectedType] = useState('');
+  const [description, setDescription] = useState('');
   const [price, setPrice] = useState('1.00');
   const [quantity, setQuantity] = useState('1');
 
@@ -117,7 +119,7 @@ const AddEstimate = () => {
     try {
       const result = await window.electronAPI.database.query(
         'all',
-        `SELECT job_no, customer_name, vehicle_no 
+        `SELECT job_no, customer_name, vehicle_no, insurance_company 
          FROM job_cards 
          ORDER BY created_at DESC`
       );
@@ -171,17 +173,18 @@ const AddEstimate = () => {
         ...prev,
         job_no: selectedJob.job_no,
         vehicle_no: selectedJob.vehicle_no,
-        customer: selectedJob.customer_name
+        customer: selectedJob.customer_name,
+        ins_company: selectedJob.insurance_company || 'N/A'
       }));
     }
   };
 
   const handleAddItem = () => {
-    if (!selectedType) return;
+    if (!selectedType || !description) return;
 
     const newItem = {
       type: selectedType,
-      description: selectedType,
+      description: description,
       price: parseFloat(price) || 0,
       quantity: parseInt(quantity) || 1,
       value: (parseFloat(price) || 0) * (parseInt(quantity) || 1),
@@ -195,12 +198,17 @@ const AddEstimate = () => {
 
     // Reset input fields
     setSelectedType('');
+    setDescription('');
     setPrice('1.00');
     setQuantity('1');
   };
 
   const calculateTotal = () => {
     return formData.items.reduce((sum, item) => sum + item.value, 0);
+  };
+
+  const calculateBalanceDue = () => {
+    return calculateTotal() - (formData.discount || 0);
   };
 
   const handleSubmit = async (e) => {
@@ -239,7 +247,7 @@ const AddEstimate = () => {
           formData.ins_company,
           formData.remarks,
           calculateTotal(),
-          0 // discount
+          formData.discount || 0
         ]
       );
 
@@ -280,7 +288,8 @@ const AddEstimate = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4 bg-gray-900 min-h-screen">
+      {/* Header with back button */}
       <div className="mb-6">
         <button
           onClick={() => navigate('/estimates')}
@@ -291,189 +300,208 @@ const AddEstimate = () => {
         </button>
       </div>
 
-      <div className="bg-gray-800 rounded-lg shadow-lg p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
-            {/* Right side details */}
-            <div className="col-span-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Invoice No</label>
-                  <input
-                    type="text"
-                    value={formData.invoice_no}
-                    onChange={(e) => setFormData(prev => ({ ...prev, invoice_no: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                    readOnly
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Job No</label>
+      <div className="bg-gray-800 rounded-lg shadow-2xl p-6 border border-gray-700">
+        <h1 className="text-2xl font-bold text-white mb-6">New Estimate</h1>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="flex gap-6">
+            {/* Left side - Items Table */}
+            <div className="flex-1">
+              <div className="mb-4">
+                <div className="flex gap-2 mb-2">
                   <select
-                    value={formData.job_no}
-                    onChange={(e) => handleJobSelect(e.target.value)}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    value={selectedType}
+                    onChange={(e) => setSelectedType(e.target.value)}
+                    className="bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm flex-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Select Job No</option>
-                    {jobNumbers.map(job => (
-                      <option key={job.job_no} value={job.job_no}>
-                        {job.job_no} - {job.customer_name} ({job.vehicle_no})
-                      </option>
+                    <option value="">Select Type</option>
+                    {workTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Vehicle No</label>
                   <input
                     type="text"
-                    value={formData.vehicle_no}
-                    onChange={(e) => setFormData(prev => ({ ...prev, vehicle_no: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Description"
+                    className="bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm flex-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Job Date</label>
-                  <input
-                    type="date"
-                    value={formData.job_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, job_date: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Customer</label>
-                  <input
-                    type="text"
-                    value={formData.customer}
-                    onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Ins Company</label>
-                  <input
-                    type="text"
-                    value={formData.ins_company}
-                    onChange={(e) => setFormData(prev => ({ ...prev, ins_company: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Remarks</label>
-                  <textarea
-                    value={formData.remarks}
-                    onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-                    rows="3"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Left side work types */}
-            <div className="space-y-4">
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
-              >
-                <option value="">Select Work Type</option>
-                {workTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
                   <input
                     type="number"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="Price"
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    className="bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm w-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
                   />
-                </div>
-                <div>
                   <input
                     type="number"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="Quantity"
-                    className="bg-gray-900 text-white border border-gray-700 rounded-md px-3 py-2 w-full"
+                    placeholder="Qty"
+                    className="bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm w-20 focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
                   />
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex items-center gap-1"
+                  >
+                    <FiPlus />
+                    Add
+                  </button>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Add Item
-              </button>
-            </div>
-          </div>
+              <div className="border border-gray-600 rounded-lg mb-4 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-700">
+                    <tr>
+                      <th className="border-r border-gray-600 px-3 py-3 text-left font-medium text-gray-200">Type</th>
+                      <th className="border-r border-gray-600 px-3 py-3 text-left font-medium text-gray-200">Description</th>
+                      <th className="border-r border-gray-600 px-3 py-3 text-right font-medium text-gray-200">Price</th>
+                      <th className="border-r border-gray-600 px-3 py-3 text-right font-medium text-gray-200">Qty</th>
+                      <th className="border-r border-gray-600 px-3 py-3 text-right font-medium text-gray-200">Value</th>
+                      <th className="px-3 py-3 text-center font-medium text-gray-200">F/B</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800">
+                    {formData.items.map((item, index) => (
+                      <tr key={index} className="border-t border-gray-700 hover:bg-gray-750">
+                        <td className="border-r border-gray-700 px-3 py-2 text-white">{item.type}</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-white">{item.description}</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-right text-white">{item.price.toFixed(2)}</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-right text-white">{item.quantity}</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-right text-white font-medium">{item.value.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-center text-white">{item.fb}</td>
+                      </tr>
+                    ))}
+                    {Array.from({ length: Math.max(0, 8 - formData.items.length) }).map((_, index) => (
+                      <tr key={`empty-${index}`} className="border-t border-gray-700">
+                        <td className="border-r border-gray-700 px-3 py-2 h-10 text-gray-500">&nbsp;</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-gray-500">&nbsp;</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-gray-500">&nbsp;</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-gray-500">&nbsp;</td>
+                        <td className="border-r border-gray-700 px-3 py-2 text-gray-500">&nbsp;</td>
+                        <td className="px-3 py-2 text-gray-500">&nbsp;</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          {/* Items Table */}
-          <div className="mt-6">
-            <table className="w-full text-white">
-              <thead className="bg-gray-700">
-                <tr>
-                  <th className="px-4 py-2 text-left">Type</th>
-                  <th className="px-4 py-2 text-left">Description</th>
-                  <th className="px-4 py-2 text-right">Price</th>
-                  <th className="px-4 py-2 text-right">Qty</th>
-                  <th className="px-4 py-2 text-right">Value</th>
-                  <th className="px-4 py-2 text-center">F/B</th>
-                </tr>
-              </thead>
-              <tbody>
-                {formData.items.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-700">
-                    <td className="px-4 py-2">{item.type}</td>
-                    <td className="px-4 py-2">{item.description}</td>
-                    <td className="px-4 py-2 text-right">{item.price.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-right">{item.quantity}</td>
-                    <td className="px-4 py-2 text-right">{item.value.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-center">{item.fb}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals */}
-          <div className="flex justify-end space-x-4 text-white">
-            <div>
-              <span className="font-medium">Total:</span>
-              <span className="ml-4">{calculateTotal().toFixed(2)}</span>
+              {/* Save button */}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  {loading ? 'Saving...' : 'Save Estimate'}
+                </button>
+              </div>
             </div>
-            <div>
-              <span className="font-medium">Discount:</span>
-              <input
-                type="number"
-                className="ml-4 bg-gray-900 border border-gray-700 rounded-md px-2 py-1 w-24"
-                value="0.00"
-              />
-            </div>
-          </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/estimates')}
-              className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              {loading ? 'Saving...' : 'Save'}
-            </button>
+            {/* Right side - Job Details */}
+            <div className="w-80 space-y-4">
+              <div className="bg-gray-750 rounded-lg p-4 border border-gray-600">
+                <h3 className="text-lg font-semibold text-white mb-4">Job Details</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Invoice Date</label>
+                    <input
+                      type="date"
+                      value={formData.job_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, job_date: e.target.value }))}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Job No</label>
+                    <select
+                      value={formData.job_no}
+                      onChange={(e) => handleJobSelect(e.target.value)}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Job No</option>
+                      {jobNumbers.map(job => (
+                        <option key={job.job_no} value={job.job_no}>
+                          {job.job_no}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Vehicle No</label>
+                    <input
+                      type="text"
+                      value={formData.vehicle_no}
+                      onChange={(e) => setFormData(prev => ({ ...prev, vehicle_no: e.target.value }))}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                      placeholder="Enter vehicle number"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Customer</label>
+                    <input
+                      type="text"
+                      value={formData.customer}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                      placeholder="Enter customer name"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Ins Company</label>
+                    <input
+                      type="text"
+                      value={formData.ins_company}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ins_company: e.target.value }))}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                      placeholder="Insurance company"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Remarks</label>
+                    <textarea
+                      value={formData.remarks}
+                      onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                      className="w-full bg-gray-700 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+                      rows="3"
+                      placeholder="Additional remarks..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Totals section */}
+              <div className="bg-gray-750 rounded-lg p-4 border border-gray-600">
+                <h3 className="text-lg font-semibold text-white mb-4">Summary</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-300">Total</span>
+                    <span className="text-white font-semibold">${calculateTotal().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="font-medium text-gray-300">Discount</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.discount || 0}
+                      onChange={(e) => setFormData(prev => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))}
+                      className="bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm w-24 text-right focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex justify-between text-lg font-bold border-t border-gray-600 pt-3">
+                    <span className="text-gray-200">Balance Due</span>
+                    <span className="text-green-400">${calculateBalanceDue().toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       </div>

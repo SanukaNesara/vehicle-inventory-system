@@ -4,6 +4,8 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalParts: 0,
     lowStockItems: 0,
@@ -25,6 +27,11 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      
+      // electronAPI should always be available (either real or web fallback)
+
       // Parts statistics
       const totalParts = await window.electronAPI.database.query(
         'get',
@@ -103,13 +110,42 @@ const Dashboard = () => {
       setRecentJobs(recent || []);
       setMonthlyData(monthly || []);
       setJobStatusData(jobStatus || []);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setError('Failed to load dashboard data');
+      setLoading(false);
     }
   };
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-xl text-gray-600 dark:text-gray-400">Loading Dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="text-xl text-red-600 dark:text-red-400 mb-4">Dashboard Error</div>
+            <div className="text-gray-600 dark:text-gray-400">{error}</div>
+            <div className="text-sm text-gray-500 mt-2">
+              Check console for more details (Press F12)
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

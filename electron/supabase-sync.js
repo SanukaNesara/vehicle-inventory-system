@@ -1,4 +1,10 @@
-const { createClient } = require('@supabase/supabase-js');
+let createClient;
+try {
+  createClient = require('@supabase/supabase-js').createClient;
+} catch (error) {
+  console.log('Supabase module not available - running in offline mode');
+  createClient = null;
+}
 const { getDatabase } = require('./database');
 
 class SupabaseSync {
@@ -10,6 +16,11 @@ class SupabaseSync {
   }
 
   initialize(url, anonKey) {
+    if (!createClient) {
+      console.log('Supabase module not available. Running in offline mode.');
+      return;
+    }
+    
     if (!url || !anonKey) {
       console.log('Supabase credentials not provided. Running in offline mode.');
       return;

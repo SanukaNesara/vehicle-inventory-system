@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+console.log('Preload script loaded');
+
 contextBridge.exposeInMainWorld('electronAPI', {
   database: {
     query: (type, query, params) => ipcRenderer.invoke('db-query', { type, query, params })
@@ -16,5 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sync: {
     getStatus: () => ipcRenderer.invoke('sync-status'),
     triggerSync: () => ipcRenderer.invoke('trigger-sync')
+  },
+  saveJobCardImage: (imageData, jobNo) => {
+    console.log('Calling save-job-card-image IPC', { jobNo });
+    return ipcRenderer.invoke('save-job-card-image', { imageData, jobNo });
   }
 });
+
+console.log('ElectronAPI exposed to renderer');

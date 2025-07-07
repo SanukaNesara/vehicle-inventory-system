@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AutoParts Pro - Working Version</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #1f2937;
+            color: white;
+            height: 100vh;
+            display: flex;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: #374151;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 {
+            margin-bottom: 30px;
+            color: #3b82f6;
+        }
+        
+        .nav-item {
+            padding: 12px 16px;
+            margin: 8px 0;
+            background: #4b5563;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nav-item:hover {
+            background: #6b7280;
+        }
+        
+        .nav-item.active {
+            background: #3b82f6;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-card {
+            background: #374151;
+            padding: 24px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        
+        .stat-label {
+            color: #9ca3af;
+            margin-top: 8px;
+        }
+        
+        .content-section {
+            background: #374151;
+            padding: 24px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 16px;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #10b981;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #4b5563;
+        }
+        
+        th {
+            background: #4b5563;
+            color: #f3f4f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🚗 AutoParts Pro</h2>
+        <div class="nav-item active" onclick="showDashboard()">
+            📊 Dashboard
+        </div>
+        <div class="nav-item" onclick="showInventory()">
+            📦 Inventory
+        </div>
+        <div class="nav-item" onclick="showAddPart()">
+            ➕ Add Part
+        </div>
+        <div class="nav-item" onclick="showJobCards()">
+            🔧 Job Cards
+        </div>
+        <div class="nav-item" onclick="showEstimates()">
+            📋 Estimates
+        </div>
+        <div class="nav-item" onclick="showInvoices()">
+            🧾 Invoices
+        </div>
+        <div class="nav-item" onclick="showReports()">
+            📈 Reports
+        </div>
+        <div class="nav-item" onclick="showLowStock()">
+            ⚠️ Low Stock
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div id="content">
+            <!-- Dashboard content will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        // Set active navigation item
+        function setActiveNav(clickedItem) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            clickedItem.classList.add('active');
+        }
+
+        function showDashboard() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>📊 Dashboard</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Welcome to AutoParts Pro - Your Vehicle Inventory Management System</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">142</div>
+                        <div class="stat-label">Total Parts</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #f59e0b;">
+                        <div class="stat-number" style="color: #f59e0b;">18</div>
+                        <div class="stat-label">Low Stock Items</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #10b981;">
+                        <div class="stat-number" style="color: #10b981;">$15,240</div>
+                        <div class="stat-label">Total Inventory Value</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #ef4444;">
+                        <div class="stat-number" style="color: #ef4444;">12</div>
+                        <div class="stat-label">Active Job Cards</div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <h3>📋 Recent Activities</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activity</th>
+                                <th>Details</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2025-06-23</td>
+                                <td>New Part Added</td>
+                                <td>Brake Pads - Honda Civic</td>
+                                <td style="color: #10b981;">✅ Completed</td>
+                            </tr>
+                            <tr>
+                                <td>2025-06-23</td>
+                                <td>Job Card Created</td>
+                                <td>Oil Change - Toyota Camry</td>
+                                <td style="color: #f59e0b;">🔄 In Progress</td>
+                            </tr>
+                            <tr>
+                                <td>2025-06-22</td>
+                                <td>Invoice Generated</td>
+                                <td>INV-001234</td>
+                                <td style="color: #10b981;">✅ Paid</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <button class="btn" onclick="showAddPart()">➕ Add New Part</button>
+                    <button class="btn" onclick="showJobCards()">🔧 Create Job Card</button>
+                    <button class="btn btn-success" onclick="showInvoices()">🧾 Generate Invoice</button>
+                </div>
+            `;
+        }
+
+        function showInventory() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>📦 Inventory Management</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Manage your vehicle parts inventory</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn" onclick="showAddPart()">➕ Add New Part</button>
+                    <button class="btn" onclick="alert('Export functionality would go here')">📤 Export Inventory</button>
+                </div>
+
+                <div class="content-section">
+                    <h3>🔍 Search & Filter</h3>
+                    <input type="text" placeholder="Search parts..." style="width: 300px; padding: 10px; margin: 10px 0; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                </div>
+
+                <div class="content-section">
+                    <h3>📋 Parts Inventory</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Part Number</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Stock</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>BP-001</td>
+                                <td>Brake Pads</td>
+                                <td>Brakes</td>
+                                <td>25</td>
+                                <td>$45.99</td>
+                                <td style="color: #10b981;">✅ In Stock</td>
+                            </tr>
+                            <tr>
+                                <td>OF-002</td>
+                                <td>Oil Filter</td>
+                                <td>Engine</td>
+                                <td>5</td>
+                                <td>$12.99</td>
+                                <td style="color: #f59e0b;">⚠️ Low Stock</td>
+                            </tr>
+                            <tr>
+                                <td>SP-003</td>
+                                <td>Spark Plugs</td>
+                                <td>Engine</td>
+                                <td>50</td>
+                                <td>$8.99</td>
+                                <td style="color: #10b981;">✅ In Stock</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function showAddPart() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>➕ Add New Part</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Add a new vehicle part to your inventory</p>
+                
+                <div class="content-section">
+                    <form onsubmit="savePart(event)" style="max-width: 600px;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Part Number:</label>
+                            <input type="text" required style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Part Name:</label>
+                            <input type="text" required style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Category:</label>
+                            <select style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                                <option>Engine</option>
+                                <option>Brakes</option>
+                                <option>Transmission</option>
+                                <option>Electrical</option>
+                                <option>Body</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Initial Stock:</label>
+                            <input type="number" required style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Cost Price:</label>
+                            <input type="number" step="0.01" required style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Selling Price:</label>
+                            <input type="number" step="0.01" required style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">💾 Save Part</button>
+                        <button type="button" class="btn" onclick="showInventory()">❌ Cancel</button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function showJobCards() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>🔧 Job Cards</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Manage vehicle service job cards</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn" onclick="alert('Create new job card functionality')">➕ New Job Card</button>
+                </div>
+
+                <div class="content-section">
+                    <h3>📋 Active Job Cards</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Job #</th>
+                                <th>Customer</th>
+                                <th>Vehicle</th>
+                                <th>Service</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>JC-001</td>
+                                <td>John Smith</td>
+                                <td>Honda Civic 2020</td>
+                                <td>Oil Change</td>
+                                <td style="color: #f59e0b;">🔄 In Progress</td>
+                                <td>2025-06-23</td>
+                            </tr>
+                            <tr>
+                                <td>JC-002</td>
+                                <td>Mary Johnson</td>
+                                <td>Toyota Camry 2019</td>
+                                <td>Brake Service</td>
+                                <td style="color: #ef4444;">⏳ Pending</td>
+                                <td>2025-06-22</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function showInvoices() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>🧾 Invoices</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Generate and manage customer invoices</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn" onclick="showInvoiceForm()">➕ New Invoice</button>
+                    <button class="btn" onclick="alert('Print preview functionality')">🖨️ Print Preview</button>
+                </div>
+
+                <div class="content-section">
+                    <h3>📋 Recent Invoices</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>INV-001234</td>
+                                <td>John Smith</td>
+                                <td>2025-06-23</td>
+                                <td>$125.50</td>
+                                <td style="color: #10b981;">✅ Paid</td>
+                                <td><button class="btn" style="padding: 6px 12px; font-size: 14px;">🖨️ Print</button></td>
+                            </tr>
+                            <tr>
+                                <td>INV-001235</td>
+                                <td>Mary Johnson</td>
+                                <td>2025-06-22</td>
+                                <td>$89.99</td>
+                                <td style="color: #f59e0b;">⏳ Pending</td>
+                                <td><button class="btn" style="padding: 6px 12px; font-size: 14px;">🖨️ Print</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function showEstimates() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>📋 Estimates</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Create and manage service estimates</p>
+                
+                <div class="content-section">
+                    <h3>Coming Soon...</h3>
+                    <p>Estimate functionality will be available in the next update.</p>
+                </div>
+            `;
+        }
+
+        function showReports() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>📈 Reports</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Business analytics and reports</p>
+                
+                <div class="content-section">
+                    <h3>📊 Quick Stats</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">$2,450</div>
+                            <div class="stat-label">This Month Revenue</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">28</div>
+                            <div class="stat-label">Jobs Completed</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showLowStock() {
+            setActiveNav(event.target);
+            document.getElementById('content').innerHTML = `
+                <h1>⚠️ Low Stock Alert</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Parts that need restocking</p>
+                
+                <div class="content-section">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Part Number</th>
+                                <th>Name</th>
+                                <th>Current Stock</th>
+                                <th>Minimum Required</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="background: rgba(239, 68, 68, 0.1);">
+                                <td>OF-002</td>
+                                <td>Oil Filter</td>
+                                <td style="color: #ef4444;">5</td>
+                                <td>20</td>
+                                <td><button class="btn" style="padding: 6px 12px; font-size: 14px;">🛒 Reorder</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function showInvoiceForm() {
+            document.getElementById('content').innerHTML = `
+                <h1>📄 Create New Invoice</h1>
+                <p style="color: #9ca3af; margin-bottom: 30px;">Generate a new customer invoice</p>
+                
+                <div class="content-section">
+                    <div style="max-width: 800px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Customer Name:</label>
+                                <input type="text" placeholder="Enter customer name" style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 8px; color: #f3f4f6;">Vehicle Number:</label>
+                                <input type="text" placeholder="Enter vehicle number" style="width: 100%; padding: 12px; border: 1px solid #4b5563; border-radius: 6px; background: #1f2937; color: white;">
+                            </div>
+                        </div>
+                        
+                        <h3 style="margin-bottom: 20px;">Parts & Services</h3>
+                        <table style="margin-bottom: 30px;">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Description</th>
+                                    <th>Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="text" style="width: 100%; padding: 8px; background: #1f2937; border: 1px solid #4b5563; color: white;"></td>
+                                    <td><input type="text" style="width: 100%; padding: 8px; background: #1f2937; border: 1px solid #4b5563; color: white;"></td>
+                                    <td><input type="number" style="width: 80px; padding: 8px; background: #1f2937; border: 1px solid #4b5563; color: white;"></td>
+                                    <td><input type="number" step="0.01" style="width: 100px; padding: 8px; background: #1f2937; border: 1px solid #4b5563; color: white;"></td>
+                                    <td style="color: #10b981; font-weight: bold;">$0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div style="text-align: right; margin-bottom: 30px;">
+                            <div style="display: inline-block; text-align: left;">
+                                <div style="margin-bottom: 10px;"><strong>Subtotal: $0.00</strong></div>
+                                <div style="margin-bottom: 10px;">Discount: $0.00</div>
+                                <div style="font-size: 18px; color: #10b981;"><strong>Total: $0.00</strong></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <button class="btn" onclick="alert('Print preview functionality - would show the EU Auto Parts invoice format you designed!')">🖨️ Print Preview</button>
+                            <button class="btn btn-success" onclick="alert('Invoice saved successfully!')">💾 Save Invoice</button>
+                            <button class="btn" onclick="showInvoices()">❌ Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function savePart(event) {
+            event.preventDefault();
+            alert('Part saved successfully! (This would save to the database)');
+            showInventory();
+        }
+
+        // Load dashboard by default
+        showDashboard();
+    </script>
+</body>
+</html>

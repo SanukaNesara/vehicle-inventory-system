@@ -361,13 +361,6 @@ const EditJobCard = () => {
               <FiSave />
               {loading ? 'Updating...' : 'Update Job Card'}
             </button>
-            <button
-              type="button"
-              onClick={() => navigate('/job-cards')}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
           </div>
         </form>
       </div>

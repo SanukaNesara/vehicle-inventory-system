@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave, FiRefreshCw } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiRefreshCw, FiCamera, FiX } from 'react-icons/fi';
 
 const AddPart = () => {
   const navigate = useNavigate();
@@ -9,6 +9,8 @@ const AddPart = () => {
   const [recentParts, setRecentParts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredParts, setFilteredParts] = useState([]);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [formData, setFormData] = useState({
     pro_no: '',
     part_number: '',
@@ -21,7 +23,8 @@ const AddPart = () => {
     low_stock_threshold: 10,
     supplier: '',
     location: '',
-    item_name: ''
+    item_name: '',
+    photo: ''
   });
 
   // Fetch recent Pro Nos on component mount
@@ -91,6 +94,45 @@ const AddPart = () => {
     });
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        setSelectedPhoto(file);
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64String = e.target.result;
+          setPhotoPreview(base64String);
+          setFormData(prev => ({ ...prev, photo: base64String }));
+        };
+        reader.readAsDataURL(file);
+      } else {
+        window.electronAPI.notification.show('Error', 'Please select a valid image file');
+      }
+    }
+  };
+
+  const removePhoto = () => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+    setFormData(prev => ({ ...prev, photo: '' }));
+    const fileInput = document.getElementById('photo-input');
+    if (fileInput) fileInput.value = '';
+  };
+
+  const getCurrentLocalTimestamp = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  };
+
   const generateProNo = async () => {
     // If pro_no already exists in form, don't generate a new one
     if (formData.pro_no) {
@@ -133,8 +175,11 @@ const AddPart = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    
     if (!formData.pro_no) {
-      window.electronAPI.notification.show('Error', 'Please generate a Pro No. first');
+      console.log('No pro_no generated');
+      window.electronAPI?.notification?.show('Error', 'Please generate a Pro No. first') || alert('Please generate a Pro No. first');
       return;
     }
     
@@ -152,41 +197,93 @@ const AddPart = () => {
         item_code: '',
         cost_code: '',
         reorder_level: 0,
-        unit: 'NOS'
+        unit: 'NOS',
+        // Use current local time
+        created_at: getCurrentLocalTimestamp(),
+        updated_at: getCurrentLocalTimestamp()
       };
 
-      // Build the SQL query with all fields
-      const result = await window.electronAPI.database.query(
-        'run',
-        `INSERT INTO parts (
-          pro_no, part_number, name, item_name, description, part_type,
-          cost_price, selling_price, final_selling_price,
-          current_stock, low_stock_threshold,
-          item_code, cost_code, reorder_level, unit, location, supplier
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          dataToSubmit.pro_no,
-          dataToSubmit.part_number,
-          dataToSubmit.name,
-          dataToSubmit.item_name || '',
-          dataToSubmit.description || '',
-          dataToSubmit.part_type,
-          dataToSubmit.cost_price,
-          dataToSubmit.selling_price,
-          dataToSubmit.final_selling_price,
-          dataToSubmit.current_stock,
-          dataToSubmit.low_stock_threshold,
-          dataToSubmit.item_code,
-          dataToSubmit.cost_code,
-          dataToSubmit.reorder_level,
-          dataToSubmit.unit,
-          dataToSubmit.location || '',
-          dataToSubmit.supplier || ''
-        ]
-      );
+      console.log('Data to submit:', dataToSubmit);
 
+      // Check if photo column exists and build appropriate query
+      let result;
+      try {
+        // First try with photo column
+        result = await window.electronAPI.database.query(
+          'run',
+          `INSERT INTO parts (
+            pro_no, part_number, name, item_name, description, part_type,
+            cost_price, selling_price, final_selling_price,
+            current_stock, low_stock_threshold,
+            item_code, cost_code, reorder_level, unit, location, supplier, photo,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            dataToSubmit.pro_no,
+            dataToSubmit.part_number,
+            dataToSubmit.name,
+            dataToSubmit.item_name || '',
+            dataToSubmit.description || '',
+            dataToSubmit.part_type,
+            dataToSubmit.cost_price,
+            dataToSubmit.selling_price,
+            dataToSubmit.final_selling_price,
+            dataToSubmit.current_stock,
+            dataToSubmit.low_stock_threshold,
+            dataToSubmit.item_code,
+            dataToSubmit.cost_code,
+            dataToSubmit.reorder_level,
+            dataToSubmit.unit,
+            dataToSubmit.location || '',
+            dataToSubmit.supplier || '',
+            dataToSubmit.photo || '',
+            dataToSubmit.created_at,
+            dataToSubmit.updated_at
+          ]
+        );
+      } catch (photoColumnError) {
+        if (photoColumnError.message?.includes('no column named photo')) {
+          console.log('Photo column does not exist, inserting without photo');
+          // Try without photo column
+          result = await window.electronAPI.database.query(
+            'run',
+            `INSERT INTO parts (
+              pro_no, part_number, name, item_name, description, part_type,
+              cost_price, selling_price, final_selling_price,
+              current_stock, low_stock_threshold,
+              item_code, cost_code, reorder_level, unit, location, supplier,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              dataToSubmit.pro_no,
+              dataToSubmit.part_number,
+              dataToSubmit.name,
+              dataToSubmit.item_name || '',
+              dataToSubmit.description || '',
+              dataToSubmit.part_type,
+              dataToSubmit.cost_price,
+              dataToSubmit.selling_price,
+              dataToSubmit.final_selling_price,
+              dataToSubmit.current_stock,
+              dataToSubmit.low_stock_threshold,
+              dataToSubmit.item_code,
+              dataToSubmit.cost_code,
+              dataToSubmit.reorder_level,
+              dataToSubmit.unit,
+              dataToSubmit.location || '',
+              dataToSubmit.supplier || '',
+              dataToSubmit.created_at,
+              dataToSubmit.updated_at
+            ]
+          );
+        } else {
+          throw photoColumnError;
+        }
+      }
+
+      console.log('Database insert result:', result);
       if (result && result.changes > 0) {
-        window.electronAPI.notification.show('Success', 'Part added successfully');
+        window.electronAPI?.notification?.show('Success', 'Part added successfully') || alert('Part added successfully');
         await fetchRecentParts();
         navigate('/inventory');
       } else {
@@ -194,6 +291,7 @@ const AddPart = () => {
       }
     } catch (error) {
       console.error('Error adding part:', error);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
       if (error.message?.includes('UNIQUE constraint failed')) {
         if (error.message.includes('pro_no')) {
           window.electronAPI.notification.show('Error', 'Pro No. already exists');
@@ -202,8 +300,10 @@ const AddPart = () => {
         } else {
           window.electronAPI.notification.show('Error', 'Duplicate entry detected');
         }
+      } else if (error.message?.includes('no such column')) {
+        window.electronAPI.notification.show('Error', 'Database schema needs to be updated. Please restart the application.');
       } else {
-        window.electronAPI.notification.show('Error', 'Failed to add part');
+        window.electronAPI.notification.show('Error', `Failed to add part: ${error.message || 'Unknown error'}`);
       }
     } finally {
       setLoading(false);
@@ -454,6 +554,53 @@ const AddPart = () => {
                   value={formData.description}
                   onChange={handleChange}
                 />
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Part Photo
+                </label>
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="photo-input"
+                      accept="image/*"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="photo-input"
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 text-gray-300 border border-gray-600 rounded-md hover:bg-gray-600 cursor-pointer transition-colors"
+                    >
+                      <FiCamera className="w-4 h-4" />
+                      Choose Photo
+                    </label>
+                    {selectedPhoto && (
+                      <p className="text-sm text-gray-400 mt-1">
+                        Selected: {selectedPhoto.name}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {photoPreview && (
+                    <div className="relative">
+                      <img
+                        src={photoPreview}
+                        alt="Part preview"
+                        className="w-24 h-24 object-cover rounded-md border border-gray-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={removePhoto}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+                      >
+                        <FiX className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Form Actions */}

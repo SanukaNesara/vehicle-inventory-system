@@ -1,8 +1,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import SyncStatus from './components/SyncStatus';
+import './utils/webDatabase';
+import './utils/webAPI';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import AddPart from './pages/AddPart';
@@ -15,9 +20,14 @@ import AddJobCard from './pages/AddJobCard';
 import EditJobCard from './pages/EditJobCard';
 import Estimates from './pages/Estimates';
 import AddEstimate from './pages/AddEstimate';
+import Invoices from './pages/Invoices';
+import Invoice from './pages/Invoice';
+import StockReceive from './pages/StockReceive';
+import StockReceives from './pages/StockReceives';
 
 function AppContent() {
   const navigate = useNavigate();
+  const { isAuthenticated, loading, login } = useAuth();
 
   useEffect(() => {
     if (window.electronAPI) {
@@ -31,6 +41,24 @@ function AppContent() {
     }
   }, [navigate]);
 
+  // Show loading spinner while checking auth state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={login} />;
+  }
+
+  // Show main app if authenticated
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
       <Sidebar />
@@ -52,6 +80,10 @@ function AppContent() {
             <Route path="/low-stock" element={<LowStock />} />
             <Route path="/estimates" element={<Estimates />} />
             <Route path="/add-estimate" element={<AddEstimate />} />
+            <Route path="/invoices" element={<Invoices />} />
+            <Route path="/add-invoice" element={<Invoice />} />
+            <Route path="/stock-receives" element={<StockReceives />} />
+            <Route path="/stock-receive" element={<StockReceive />} />
           </Routes>
         </div>
       </div>
@@ -61,11 +93,15 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

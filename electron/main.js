@@ -1,9 +1,21 @@
 const { app, BrowserWindow, ipcMain, Notification, Menu } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const isDev = require('electron-is-dev');
-const { initDatabase, getDatabase } = require('./database');
+const { initDatabase, getDatabase, isUsingNativeDatabase } = require('./database');
 const { migrateDatabase } = require('./migrate-db');
-const supabaseSync = require('./supabase-sync');
+let supabaseSync;
+try {
+  supabaseSync = require('./supabase-sync');
+} catch (error) {
+  console.log('Supabase sync module not available - running in offline mode');
+  supabaseSync = {
+    initialize: () => console.log('Supabase sync disabled'),
+    getSyncStatus: () => ({ isConnected: false, isSyncing: false, lastSyncTime: null }),
+    syncAll: () => Promise.resolve()
+  };
+}
 
 let mainWindow;
 let db;
@@ -15,9 +27,20 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
+      enableRemoteModule: false,
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false, // Disable web security for local files
+      backgroundThrottling: false,
+      disableBackgroundThrottling: true
+    },
+    show: false, // Don't show until ready
+    icon: undefined // Explicitly set no icon to avoid cache issues
     // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
+  });
+
+  // Show window when ready to prevent flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
   });
 
   // Create the menu template
@@ -75,27 +98,54 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
-  mainWindow.loadURL(
-    isDev
-      ? 'http://localhost:3000'
-      : `file://${path.join(__dirname, '../build/index.html')}`
-  );
+  const startUrl = isDev
+    ? 'http://localhost:3001'
+    : `file://${path.join(__dirname, '../build/index.html')}`;
 
+  console.log('Loading URL:', startUrl);
+  console.log('isDev:', isDev);
+  console.log('File exists:', require('fs').existsSync(path.join(__dirname, '../build/index.html')));
+
+  mainWindow.loadURL(startUrl);
+
+  // Open dev tools only in development 
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
+  
+  // Add debugging info
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('Window finished loading');
+    mainWindow.webContents.executeJavaScript(`
+      console.log('Window loaded, electronAPI available:', !!window.electronAPI);
+      console.log('Location:', window.location.href);
+      console.log('React root element:', document.getElementById('root'));
+    `);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
+// Fix cache permission issues on Windows
+app.commandLine.appendSwitch('--disable-gpu-sandbox');
+app.commandLine.appendSwitch('--disable-software-rasterizer');
+app.commandLine.appendSwitch('--no-sandbox');
+app.commandLine.appendSwitch('--disable-gpu');
+app.commandLine.appendSwitch('--disable-dev-shm-usage');
+app.commandLine.appendSwitch('--disable-extensions');
+app.commandLine.appendSwitch('--disable-background-timer-throttling');
+app.commandLine.appendSwitch('--disable-renderer-backgrounding');
+app.commandLine.appendSwitch('--disable-features=VizDisplayCompositor');
+
 app.whenReady().then(async () => {
   db = await initDatabase();
   
   // Run migration to update database schema
   try {
-    migrateDatabase();
+    await migrateDatabase();
+    console.log('Database migration completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
   }
@@ -120,67 +170,158 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Handle app termination gracefully
+app.on('before-quit', (event) => {
+  // Close database connection if available
+  if (db && typeof db.close === 'function') {
+    try {
+      db.close();
+    } catch (error) {
+      console.error('Error closing database:', error);
+    }
+  }
+});
+
+// Handle Ctrl+C gracefully
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, closing application gracefully...');
+  app.quit();
+});
+
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
   }
 });
 
-function checkLowStock() {
-  const db = getDatabase();
-  db.all(
-    `SELECT * FROM parts WHERE current_stock <= low_stock_threshold`,
-    [],
-    (err, rows) => {
-      if (err) {
-        console.error('Error checking low stock:', err);
-        return;
+async function checkLowStock() {
+  try {
+    const db = getDatabase();
+    const isNative = isUsingNativeDatabase();
+    let rows = [];
+    
+    if (isNative) {
+      if (db.prepare) {
+        // better-sqlite3 style (synchronous)
+        const stmt = db.prepare(`SELECT * FROM parts WHERE current_stock <= low_stock_threshold`);
+        rows = stmt.all();
+      } else {
+        // sqlite wrapper style (asynchronous)
+        rows = await db.all(`SELECT * FROM parts WHERE current_stock <= low_stock_threshold`);
       }
+    } else {
+      // Mock database - return empty array to avoid notifications
+      console.log('Mock database: Skipping low stock check');
+      return;
+    }
+    
+    if (rows.length > 0) {
+      const notification = new Notification({
+        title: 'Low Stock Alert!',
+        body: `${rows.length} item(s) are running low on stock`
+        // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
+      });
       
-      if (rows.length > 0) {
-        const notification = new Notification({
-          title: 'Low Stock Alert!',
-          body: `${rows.length} item(s) are running low on stock`
-          // icon: path.join(__dirname, '../public/icon.png') // Removed - using default icon
-        });
-        
-        notification.show();
-        
-        notification.on('click', () => {
-          mainWindow.webContents.send('navigate-to-low-stock');
-        });
-        
-        // Log alerts
-        rows.forEach(part => {
-          db.run(
-            `INSERT INTO low_stock_alerts (part_id, current_stock, threshold, alert_sent) 
-             VALUES (?, ?, ?, 1)`,
-            [part.id, part.current_stock, part.low_stock_threshold]
-          );
-        });
+      notification.show();
+      
+      notification.on('click', () => {
+        mainWindow.webContents.send('navigate-to-low-stock');
+      });
+      
+      // Log alerts
+      const alertQuery = `INSERT INTO low_stock_alerts (part_id, current_stock, threshold, alert_sent) 
+                          VALUES (?, ?, ?, 1)`;
+      
+      for (const part of rows) {
+        try {
+          if (db.prepare) {
+            // better-sqlite3 style (synchronous)
+            const alertStmt = db.prepare(alertQuery);
+            alertStmt.run(part.id, part.current_stock, part.low_stock_threshold);
+          } else {
+            // sqlite wrapper style (asynchronous)
+            await db.run(alertQuery, [part.id, part.current_stock, part.low_stock_threshold]);
+          }
+        } catch (err) {
+          console.error('Error logging low stock alert:', err);
+        }
       }
     }
-  );
+  } catch (err) {
+    console.error('Error checking low stock:', err);
+  }
 }
 
 ipcMain.handle('db-query', async (event, { type, query, params }) => {
-  const db = getDatabase();
-  
   try {
-    switch (type) {
-      case 'all':
-        return await db.all(query, params || []);
-      case 'get':
-        return await db.get(query, params || []);
-      case 'run':
-        const result = await db.run(query, params || []);
-        return { lastID: result.lastID, changes: result.changes };
-      default:
-        throw new Error('Invalid query type');
+    const db = getDatabase();
+    const isNative = isUsingNativeDatabase();
+    
+    if (!isNative) {
+      // Mock database - return appropriate mock responses
+      const mockStmt = db.prepare(query);
+      switch (type) {
+        case 'all':
+          return mockStmt.all(params || []);
+        case 'get':
+          return mockStmt.get(params || []);
+        case 'run':
+          const mockResult = mockStmt.run(params || []);
+          return { 
+            lastID: mockResult.lastInsertRowid, 
+            changes: mockResult.changes 
+          };
+        default:
+          throw new Error('Invalid query type');
+      }
     }
-  } catch (error) {
-    console.error('Database error:', error);
-    throw error;
+    
+    // Native database handling
+    if (db.prepare) {
+      // better-sqlite3 style (synchronous)
+      const stmt = db.prepare(query);
+      
+      switch (type) {
+        case 'all':
+          return stmt.all(params || []);
+        case 'get':
+          return stmt.get(params || []);
+        case 'run':
+          const result = stmt.run(params || []);
+          // Save database if using sql.js
+          if (db.save && typeof db.save === 'function') {
+            db.save();
+          }
+          return { 
+            lastID: result.lastInsertRowid, 
+            changes: result.changes 
+          };
+        default:
+          throw new Error('Invalid query type');
+      }
+    } else {
+      // sqlite wrapper style (asynchronous)
+      switch (type) {
+        case 'all':
+          return await db.all(query, params || []);
+        case 'get':
+          return await db.get(query, params || []);
+        case 'run':
+          const result = await db.run(query, params || []);
+          return { 
+            lastID: result.lastID, 
+            changes: result.changes 
+          };
+        default:
+          throw new Error('Invalid query type');
+      }
+    }
+  } catch (err) {
+    console.error('Database error:', err);
+    console.error('Query:', query);
+    console.error('Params:', params);
+    console.error('Type:', type);
+    throw err;
   }
 });
 
@@ -202,4 +343,44 @@ ipcMain.handle('sync-status', async () => {
 ipcMain.handle('trigger-sync', async () => {
   await supabaseSync.syncAll();
   return supabaseSync.getSyncStatus();
+});
+
+// Handle saving job card image to desktop
+ipcMain.handle('save-job-card-image', async (event, { imageData, jobNo }) => {
+  console.log('IPC Handler called: save-job-card-image', { jobNo });
+  try {
+    // Get desktop path
+    const desktopPath = path.join(os.homedir(), 'Desktop');
+    
+    // Create filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `JobCard_${jobNo}_${timestamp}.png`;
+    const filepath = path.join(desktopPath, filename);
+    
+    // Remove the data URL prefix if present
+    const base64Data = imageData.replace(/^data:image\/png;base64,/, '');
+    
+    // Save the image
+    fs.writeFileSync(filepath, base64Data, 'base64');
+    
+    // Show success notification
+    const notification = new Notification({
+      title: 'Job Card Saved',
+      body: `Job card image saved to Desktop as ${filename}`
+    });
+    notification.show();
+    
+    return { success: true, filepath };
+  } catch (error) {
+    console.error('Error saving job card image:', error);
+    
+    // Show error notification
+    const notification = new Notification({
+      title: 'Error Saving Job Card',
+      body: 'Failed to save job card image to Desktop'
+    });
+    notification.show();
+    
+    return { success: false, error: error.message };
+  }
 });

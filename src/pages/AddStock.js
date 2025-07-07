@@ -93,7 +93,7 @@ const AddStock = () => {
           selling_price = ?,
           final_selling_price = ?,
           low_stock_threshold = ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = datetime('now','localtime')
         WHERE id = ?`,
         [
           parseInt(formData.quantity),
