@@ -100,11 +100,11 @@ function createWindow() {
 
   const startUrl = isDev
     ? 'http://localhost:3001'
-    : `file://${path.join(__dirname, '../build/index.html')}`;
+    : `file://${path.join(__dirname, isDev ? '../build/index.html' : '../index.html')}`;
 
   console.log('Loading URL:', startUrl);
   console.log('isDev:', isDev);
-  console.log('File exists:', require('fs').existsSync(path.join(__dirname, '../build/index.html')));
+  console.log('File exists:', require('fs').existsSync(path.join(__dirname, isDev ? '../build/index.html' : '../index.html')));
 
   mainWindow.loadURL(startUrl);
 
@@ -140,21 +140,42 @@ app.commandLine.appendSwitch('--disable-renderer-backgrounding');
 app.commandLine.appendSwitch('--disable-features=VizDisplayCompositor');
 
 app.whenReady().then(async () => {
-  db = await initDatabase();
-  
-  // Run migration to update database schema
   try {
-    await migrateDatabase();
-    console.log('Database migration completed successfully');
+    console.log('🚀 Initializing AutoParts Pro application...');
+    db = await initDatabase();
+    console.log('✅ Database initialization completed');
+    
+    // Run migration to update database schema
+    try {
+      await migrateDatabase();
+      console.log('✅ Database migration completed successfully');
+    } catch (error) {
+      console.error('❌ Migration error:', error);
+      // Continue even if migration fails
+    }
   } catch (error) {
-    console.error('Migration error:', error);
+    console.error('❌ Critical error during database initialization:', error);
+    // Show error dialog to user
+    const { dialog } = require('electron');
+    dialog.showErrorBox(
+      'Database Error', 
+      `Failed to initialize database: ${error.message}\n\nThe application will continue with limited functionality.`
+    );
   }
   
   // Initialize Supabase sync if credentials are available
-  const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-  const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-  if (supabaseUrl && supabaseKey) {
-    supabaseSync.initialize(supabaseUrl, supabaseKey);
+  try {
+    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+    const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+    if (supabaseUrl && supabaseKey) {
+      console.log('Initializing Supabase sync...');
+      supabaseSync.initialize(supabaseUrl, supabaseKey);
+    } else {
+      console.log('Supabase credentials not found - running in offline mode');
+    }
+  } catch (error) {
+    console.error('Error initializing Supabase sync:', error);
+    console.log('Continuing in offline mode...');
   }
   
   createWindow();
@@ -234,6 +255,12 @@ async function checkLowStock() {
       
       for (const part of rows) {
         try {
+          // Skip if part doesn't have a valid ID
+          if (!part.id) {
+            console.log('Skipping low stock alert for part without ID:', part);
+            continue;
+          }
+          
           if (db.prepare) {
             // better-sqlite3 style (synchronous)
             const alertStmt = db.prepare(alertQuery);
@@ -255,11 +282,41 @@ async function checkLowStock() {
 ipcMain.handle('db-query', async (event, { type, query, params }) => {
   try {
     const db = getDatabase();
+    
+    if (!db) {
+      console.error('❌ Database not available');
+      throw new Error('Database not initialized');
+    }
+    
     const isNative = isUsingNativeDatabase();
+    
+    // Convert INSERT to INSERT OR IGNORE for certain tables to handle duplicates gracefully
+    let processedQuery = query;
+    if (query.includes('INSERT INTO') && (
+      query.includes('INSERT INTO parts') ||
+      query.includes('INSERT INTO job_cards') ||
+      query.includes('INSERT INTO estimates') ||
+      query.includes('INSERT INTO invoices') ||
+      query.includes('INSERT INTO low_stock_alerts')
+    )) {
+      // Check if this is a UNIQUE constraint sensitive table
+      if (query.includes('INSERT INTO parts') && query.includes('part_number')) {
+        processedQuery = query.replace('INSERT INTO', 'INSERT OR IGNORE INTO');
+      } else if (query.includes('INSERT INTO job_cards') && query.includes('job_no')) {
+        processedQuery = query.replace('INSERT INTO', 'INSERT OR IGNORE INTO');
+      } else if (query.includes('INSERT INTO estimates') && query.includes('invoice_no')) {
+        processedQuery = query.replace('INSERT INTO', 'INSERT OR IGNORE INTO');
+      } else if (query.includes('INSERT INTO invoices') && query.includes('inv_no')) {
+        processedQuery = query.replace('INSERT INTO', 'INSERT OR IGNORE INTO');
+      } else if (query.includes('INSERT INTO low_stock_alerts')) {
+        // For low stock alerts, check if similar alert exists first
+        processedQuery = query.replace('INSERT INTO', 'INSERT OR IGNORE INTO');
+      }
+    }
     
     if (!isNative) {
       // Mock database - return appropriate mock responses
-      const mockStmt = db.prepare(query);
+      const mockStmt = db.prepare(processedQuery);
       switch (type) {
         case 'all':
           return mockStmt.all(params || []);
@@ -279,7 +336,7 @@ ipcMain.handle('db-query', async (event, { type, query, params }) => {
     // Native database handling
     if (db.prepare) {
       // better-sqlite3 style (synchronous)
-      const stmt = db.prepare(query);
+      const stmt = db.prepare(processedQuery);
       
       switch (type) {
         case 'all':
@@ -303,11 +360,11 @@ ipcMain.handle('db-query', async (event, { type, query, params }) => {
       // sqlite wrapper style (asynchronous)
       switch (type) {
         case 'all':
-          return await db.all(query, params || []);
+          return await db.all(processedQuery, params || []);
         case 'get':
-          return await db.get(query, params || []);
+          return await db.get(processedQuery, params || []);
         case 'run':
-          const result = await db.run(query, params || []);
+          const result = await db.run(processedQuery, params || []);
           return { 
             lastID: result.lastID, 
             changes: result.changes 
@@ -321,6 +378,12 @@ ipcMain.handle('db-query', async (event, { type, query, params }) => {
     console.error('Query:', query);
     console.error('Params:', params);
     console.error('Type:', type);
+    
+    // For UNIQUE constraint failures, log a more helpful message
+    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      console.log('💡 This appears to be a duplicate entry. Consider using INSERT OR IGNORE or checking for existing data first.');
+    }
+    
     throw err;
   }
 });
