@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
-import SyncStatus from './components/SyncStatus';
+
 import './utils/webDatabase';
 import './utils/webAPI';
 import Dashboard from './pages/Dashboard';
@@ -64,9 +64,6 @@ function AppContent() {
       <Sidebar />
       <div className="flex-1 overflow-y-auto">
         <div className="p-6 animate-fade-in">
-          <div className="flex justify-end mb-4">
-            <SyncStatus />
-          </div>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />

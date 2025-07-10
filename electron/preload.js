@@ -15,10 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNavigate: (callback) => {
     ipcRenderer.on('navigate', (_, path) => callback(path));
   },
-  sync: {
-    getStatus: () => ipcRenderer.invoke('sync-status'),
-    triggerSync: () => ipcRenderer.invoke('trigger-sync')
-  },
   saveJobCardImage: (imageData, jobNo) => {
     console.log('Calling save-job-card-image IPC', { jobNo });
     return ipcRenderer.invoke('save-job-card-image', { imageData, jobNo });

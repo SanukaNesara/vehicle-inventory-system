@@ -5,17 +5,6 @@ const os = require('os');
 const isDev = require('electron-is-dev');
 const { initDatabase, getDatabase, isUsingNativeDatabase } = require('./database');
 const { migrateDatabase } = require('./migrate-db');
-let supabaseSync;
-try {
-  supabaseSync = require('./supabase-sync');
-} catch (error) {
-  console.log('Supabase sync module not available - running in offline mode');
-  supabaseSync = {
-    initialize: () => console.log('Supabase sync disabled'),
-    getSyncStatus: () => ({ isConnected: false, isSyncing: false, lastSyncTime: null }),
-    syncAll: () => Promise.resolve()
-  };
-}
 
 let mainWindow;
 let db;
@@ -98,13 +87,35 @@ function createWindow() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
-  const startUrl = isDev
-    ? 'http://localhost:3001'
-    : `file://${path.join(__dirname, isDev ? '../build/index.html' : '../index.html')}`;
-
-  console.log('Loading URL:', startUrl);
+  let startUrl;
+  
+  if (isDev) {
+    const buildPath = path.join(__dirname, '../build/index.html');
+    const buildExists = fs.existsSync(buildPath);
+    
+    if (buildExists) {
+      startUrl = `file://${buildPath}`;
+      console.log('Loading from build directory:', startUrl);
+    } else {
+      startUrl = 'http://localhost:3001';
+      console.log('Loading from dev server:', startUrl);
+    }
+  } else {
+    const packagedBuildPath = path.join(__dirname, '../build/index.html');
+    
+    if (fs.existsSync(packagedBuildPath)) {
+      startUrl = `file://${packagedBuildPath}`;
+      console.log('Loading from packaged build:', startUrl);
+    } else {
+      console.error('No build files found in packaged app!');
+      console.error('Tried path:', packagedBuildPath);
+      startUrl = `file://${packagedBuildPath}`; // Try anyway
+    }
+  }
+  
   console.log('isDev:', isDev);
-  console.log('File exists:', require('fs').existsSync(path.join(__dirname, isDev ? '../build/index.html' : '../index.html')));
+  console.log('__dirname:', __dirname);
+  console.log('Final startUrl:', startUrl);
 
   mainWindow.loadURL(startUrl);
 
@@ -115,12 +126,30 @@ function createWindow() {
   
   // Add debugging info
   mainWindow.webContents.once('did-finish-load', () => {
-    console.log('Window finished loading');
-    mainWindow.webContents.executeJavaScript(`
-      console.log('Window loaded, electronAPI available:', !!window.electronAPI);
-      console.log('Location:', window.location.href);
-      console.log('React root element:', document.getElementById('root'));
-    `);
+    console.log('✅ Window finished loading');
+    setTimeout(() => {
+      mainWindow.webContents.executeJavaScript(`
+        console.log('=== ELECTRON DEBUG INFO ===');
+        console.log('Window loaded, electronAPI available:', !!window.electronAPI);
+        console.log('Location:', window.location.href);
+        console.log('React root element exists:', !!document.getElementById('root'));
+        console.log('React root content:', document.getElementById('root')?.innerHTML?.substring(0, 200));
+        console.log('Body classes:', document.body.className);
+        console.log('Any errors in console:', window.__errors || 'None captured');
+        console.log('Document ready state:', document.readyState);
+        console.log('=== END DEBUG INFO ===');
+        
+        // Force show something visible for testing
+        if (document.getElementById('root') && !document.getElementById('root').innerHTML.trim()) {
+          console.log('🚨 ROOT IS EMPTY - Adding test content');
+          document.getElementById('root').innerHTML = '<div style="padding: 20px; background: red; color: white; font-size: 24px;">TEST: If you see this, Electron is working but React is not loading!</div>';
+        }
+      `);
+    }, 1000);
+  });
+  
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Failed to load:', errorCode, errorDescription);
   });
 
   mainWindow.on('closed', () => {
@@ -163,20 +192,6 @@ app.whenReady().then(async () => {
     );
   }
   
-  // Initialize Supabase sync if credentials are available
-  try {
-    const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-    const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-    if (supabaseUrl && supabaseKey) {
-      console.log('Initializing Supabase sync...');
-      supabaseSync.initialize(supabaseUrl, supabaseKey);
-    } else {
-      console.log('Supabase credentials not found - running in offline mode');
-    }
-  } catch (error) {
-    console.error('Error initializing Supabase sync:', error);
-    console.log('Continuing in offline mode...');
-  }
   
   createWindow();
   
@@ -398,15 +413,6 @@ ipcMain.handle('show-notification', async (event, { title, body }) => {
   notification.show();
 });
 
-// Supabase sync handlers
-ipcMain.handle('sync-status', async () => {
-  return supabaseSync.getSyncStatus();
-});
-
-ipcMain.handle('trigger-sync', async () => {
-  await supabaseSync.syncAll();
-  return supabaseSync.getSyncStatus();
-});
 
 // Handle saving job card image to desktop
 ipcMain.handle('save-job-card-image', async (event, { imageData, jobNo }) => {

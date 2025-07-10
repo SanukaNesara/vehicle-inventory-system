@@ -33,13 +33,6 @@ const webAPI = {
     }
   },
 
-  async syncStatus() {
-    return { status: 'offline', message: 'Web version - no sync available' };
-  },
-
-  async triggerSync() {
-    return { status: 'offline', message: 'Web version - no sync available' };
-  },
 
   // Navigation functions for web version (no-op since web uses React Router)
   onNavigateToLowStock(callback) {
