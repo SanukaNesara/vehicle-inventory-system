@@ -16,178 +16,248 @@ A modern, feature-rich inventory management system for auto parts shops built wi
 - **Real-time Dashboard** - View statistics, charts, and recent activities
 - **Low Stock Alerts** - Automatic notifications when parts run low
 - **Stock History** - Track all inventory movements with detailed filtering
+- **Photo Support** - Upload and display part photos with base64 storage
+- **Invoice System** - Professional invoice generation with print support
+- **Estimates** - Create detailed service estimates
+- **Reports** - Comprehensive business analytics
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v16 or higher)
 - npm or yarn
 
-### Installation
+### Installation & Running
 
-1. Clone the repository
+1. **Clone the repository**
+
 ```bash
 git clone https://github.com/yourusername/vehicle-inventory-system.git
 cd vehicle-inventory-system
 ```
 
-2. Install dependencies
+2. **Install dependencies**
+
 ```bash
 npm install
 ```
 
-3. Rebuild native modules for Electron
-```bash
-npx electron-rebuild -f -w sqlite3
-```
+3. **Start the application**
 
-4. Start the application
 ```bash
 npm start
 ```
 
-## 💻 Development
+The app will automatically:
 
-- `npm start` - Start the development server with hot reload
-- `npm run build` - Build the React app for production
-- `npm run electron-pack` - Package the Electron app for distribution
+- Start the React development server
+- Open the Electron desktop application
+- Initialize the database (mock mode for development)
+
+## 💻 Development Commands
+
+```bash
+# Start development with hot reload
+npm start
+
+# Start React dev server only
+npm run react-start
+
+# Start Electron only (requires React server)
+npm run electron-start
+
+# Build React app for production
+npm run build
+
+# Run tests
+npm run test
+
+# Package for current platform
+npm run electron-pack
+
+# Build and package
+npm run dist
+```
 
 ## 📦 Building Executables
 
-### Windows (.exe)
+### For Current Platform
 
-1. First, build the React app:
-```bash
-npm run build
-```
-
-2. Then create the Windows executable:
-```bash
-npm run electron-pack
-```
-
-This will create:
-- `dist/Vehicle Inventory System Setup {version}.exe` - Windows installer
-- `dist/win-unpacked/` - Unpacked Windows application
-
-### macOS (.dmg, .app)
-
-On macOS, run:
 ```bash
 npm run build
 npm run electron-pack
 ```
 
-This will create:
-- `dist/Vehicle Inventory System-{version}.dmg` - macOS installer
-- `dist/mac/` - macOS application
+### For Specific Platforms
 
-### Linux (.AppImage, .deb)
-
-On Linux, run:
 ```bash
-npm run build
-npm run electron-pack
+# Windows
+npm run electron-pack:win
+
+# macOS
+npm run electron-pack:mac
+
+# Linux
+npm run electron-pack:linux
+
+# All platforms
+npm run dist:all
 ```
 
-This will create:
-- `dist/Vehicle Inventory System-{version}.AppImage` - Linux AppImage
-- `dist/` - Other Linux formats based on your configuration
+### Cross-Platform Building
 
-### Build for All Platforms
+#### Windows Build (from macOS/Linux)
 
-To build for all platforms from a single machine (requires additional setup):
+1. **Using GitHub Actions** (Recommended)
 
-1. Install required dependencies:
-```bash
-# For Windows builds on macOS/Linux
-brew install --cask wine-stable  # macOS
-# or
-sudo apt-get install wine  # Linux
-```
+   - Push to GitHub repository
+   - Actions will automatically build for all platforms
+   - Download artifacts from Actions tab
 
-2. Build for all platforms:
-```bash
-npm run build
-npm run electron-pack -- -mwl  # m=mac, w=windows, l=linux
-```
+2. **Using Windows Machine**
+   - Transfer project to Windows
+   - Install Node.js and npm
+   - Run: `npm install && npm run dist`
 
-### Important Notes
+#### Build Output
 
-- **Code Signing**: For distribution, you'll need to sign your executables:
-  - Windows: Requires a code signing certificate
-  - macOS: Requires an Apple Developer certificate
-  - Linux: Optional but recommended
+- **Windows**: `dist/AutoParts Pro Setup 1.0.0.exe`
+- **macOS**: `dist/AutoParts Pro-1.0.0-arm64.dmg`
+- **Linux**: `dist/AutoParts Pro-1.0.0.AppImage`
 
-- **Auto-updater**: The build is configured to support auto-updates. Set up a release server or use GitHub releases.
+## 🗄️ Database
 
-- **Native Dependencies**: SQLite3 needs to be rebuilt for each platform:
-```bash
-npx electron-rebuild -f -w sqlite3
-```
+### Local Database
 
-### Troubleshooting Builds
+- **Location**: OS-specific user data directory
+  - macOS: `~/Library/Application Support/vehicle-inventory-system/`
+  - Windows: `%APPDATA%/vehicle-inventory-system/`
+  - Linux: `~/.config/vehicle-inventory-system/`
 
-1. **SQLite3 Issues**: If you encounter SQLite3 errors when running the built app:
-```bash
-npm rebuild sqlite3 --runtime=electron --target=22.0.0 --dist-url=https://atom.io/download/electron
-```
+### Database Schema
 
-2. **Missing Dependencies**: Ensure all native modules are included:
-```bash
-npm run electron-pack -- --dir  # Test without packaging first
-```
+- **Parts**: Inventory items with pricing, stock, and photos
+- **Stock Movements**: Inventory transaction history
+- **Job Cards**: Service jobs with customer details
+- **Job Card Parts**: Parts used in jobs
+- **Low Stock Alerts**: Automated stock monitoring
 
-3. **Build Fails**: Clear cache and rebuild:
-```bash
-rm -rf dist/ build/
-npm run build
-npm run electron-pack
-```
+### Database Management
+
+Use [DB Browser for SQLite](https://sqlitebrowser.org/) to directly manage the database file.
+
+## 🗄️ Database Storage
+
+The application uses SQLite for reliable local data storage. No cloud setup is required - the database is automatically created when you first run the app.
 
 ## 🏗️ Tech Stack
 
-- **Frontend**: React 18, Tailwind CSS
-- **Desktop**: Electron
-- **Database**: SQLite3
+- **Frontend**: React 18, Tailwind CSS, React Router
+- **Desktop**: Electron 22
+- **Database**: SQLite3 with better-sqlite3
 - **Charts**: Recharts
 - **Icons**: React Icons
+- **Build**: Electron Builder
 
-## 📱 Features Overview
+## 📱 Application Features
 
 ### Dashboard
-- Real-time statistics
-- Revenue tracking
+
+- Real-time statistics and KPIs
+- Revenue and cost tracking
 - Job status overview
 - Low stock alerts
+- Recent activities
 
 ### Inventory Management
-- Add new parts with detailed information
-- Track part types (new/used)
-- Manage pricing and profit margins
-- Filter and search capabilities
+
+- Add parts with detailed information
+- Photo upload and display
+- Part type classification (new/used)
+- Pricing and profit margin management
+- Advanced search and filtering
 
 ### Job Cards
+
 - Create repair jobs with customer details
-- Select parts from inventory
-- Automatic stock deduction on job completion
-- Job status tracking (pending/completed/cancelled)
+- Vehicle information tracking
+- Part selection from inventory
+- Automatic stock deduction
+- Status tracking (pending/completed/cancelled)
 
 ### Stock Management
+
 - Add stock with dynamic pricing
-- Low stock threshold alerts
+- Low stock threshold monitoring
 - Movement history tracking
 - Detailed stock reports
+- Automated alerts
+
+### Invoicing & Estimates
+
+- Professional invoice generation
+- Print-ready formatting
+- Service estimates
+- Customer management
+- Pricing calculations
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### White Screen on Startup
+
+- Ensure `npm run build` has been executed
+- Check developer tools console for errors
+- Verify all dependencies are installed
+
+#### SQLite3 Errors
+
+- **WSL2 Users**: Run on native Windows or use Docker
+- **Native Dependencies**: Run `npm rebuild sqlite3 --runtime=electron`
+- **Fallback**: App uses mock database if SQLite3 unavailable
+
+#### Build Failures
+
+```bash
+# Clean rebuild
+rm -rf node_modules dist build
+npm install
+npm run build
+npm run electron-pack
+```
+
+### Performance
+
+- Development uses mock database for fast startup
+- Production builds include native SQLite3
+- Images stored as base64 in database
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 👥 Author
 
-Built with ❤️ by Nethusha
+Built with ❤️ for auto parts professionals
+
+---
+
+## 🆘 Support
+
+For issues and questions:
+
+1. Check the troubleshooting section above
+2. Search existing GitHub issues
+3. Create a new issue with detailed description
+
+**Happy inventory management!** 🚗✨
